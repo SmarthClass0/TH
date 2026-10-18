@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ระบบตรวจสอบผลการเรียน</title>
 <link rel="preconnect" href="https://cdn.tailwindcss.com">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -48,6 +48,17 @@ html{scroll-behavior:smooth}
 .brand-panel>*{position:relative;z-index:1}
 .gold-rule{width:64px;height:3px;background:#c9a227;margin-top:1rem;border-radius:2px}
 .crest{width:3.75rem;height:3.75rem;border-radius:9999px;border:2px solid #e3c25d;color:#f3dc8f;display:flex;align-items:center;justify-content:center;font-size:1.6rem;background:rgba(255,255,255,.06)}
+/* ===== มือถือ ===== */
+html{-webkit-text-size-adjust:100%}
+button,a,select,summary{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#adminTabs::-webkit-scrollbar,.st-scroll::-webkit-scrollbar{display:none}#adminTabs,.st-scroll{scrollbar-width:none}
+@media (max-width:640px){
+ input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px!important} /* กัน iPhone ซูมหน้าจอเองเมื่อแตะช่องกรอก */
+ button[class*="px-"],select{min-height:44px}
+ main[class]{padding-left:.75rem;padding-right:.75rem}
+ .auth-body{padding:1.25rem 1rem 1.5rem}.auth-head{padding:1.4rem 1rem 1.1rem}
+ .app-toast{top:calc(env(safe-area-inset-top,0px) + .75rem)!important}
+}
 </style>
 </head>
 <body class="min-h-screen">
@@ -122,8 +133,8 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEUcm3PNWFGI_3tldA1
      <div class="auth-sec"><span class="step-no">1</span>ข้อมูลของคุณ</div>
      <div><label class="text-sm font-semibold text-stone-700">ชื่อ - นามสกุลจริง <span class="text-red-500">*</span></label>
       <input type="text" id="regName" placeholder="นายสมชาย รักดี" class="w-full px-3 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-base mt-1"></div>
-     <div><label class="text-sm font-semibold text-stone-700">รหัสนักเรียน <span class="text-red-500">*</span> <span class="font-normal text-stone-500">(ให้ตรงกับที่ครูมี)</span></label>
-      <input type="text" id="regStudentId" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="เช่น 660123" class="w-full px-3 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-base mt-1"></div>
+     <div><label class="text-sm font-semibold text-stone-700">รหัสนักเรียน <span class="text-red-500">*</span> <span class="font-normal text-stone-500">(ให้ตรงกับที่ครูมี · ขึ้นต้นด้วยรหัสปีที่เข้าเรียน)</span></label>
+      <input type="text" id="regStudentId" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="เช่น 69XXXXXXX" class="w-full px-3 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-base mt-1"></div>
     </section>
     <section class="space-y-3">
      <div class="auth-sec"><span class="step-no">2</span>ระดับชั้น ห้อง และกลุ่มของคุณ</div>
@@ -201,7 +212,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEUcm3PNWFGI_3tldA1
 <div id="studentDashboard" class="hidden space-y-4">
  <div id="stHeader"></div>
  <div id="stTabs"></div>
- <div id="stBody"></div>
+ <div id="stBody" class="pb-24 sm:pb-0"></div>
 </div>
 
 <div id="adminLoginForm" class="hidden auth-card max-w-md mx-auto">
@@ -236,7 +247,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEUcm3PNWFGI_3tldA1
  <div class="absolute inset-0 bg-black/40" onclick="closeRoomDrawer()"></div>
  <aside id="roomDrawerPanel" class="absolute right-0 top-0 h-full w-[88%] max-w-sm bg-white shadow-2xl p-4 overflow-y-auto translate-x-full transition-transform duration-200"><div id="roomDrawerBody"></div></aside>
 </div>
-<footer class="text-center text-xs text-slate-400 pb-6">© ห้องเรียนออนไลน์</footer>
+<footer class="text-center text-xs text-slate-400 pb-24 sm:pb-6">© ห้องเรียนออนไลน์</footer>
 
 <script>
 const API_TIMEOUT_MS = 25000;
@@ -684,7 +695,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeRoomD
 function stRoomCards(curId) { // การ์ดห้องที่นักเรียนลงทะเบียนไว้ (แตะเพื่อเข้าดู)
   const last = lastRoomGet();
   return stRooms.map((r) => `<button type="button" onclick="pickRoom('${esc(r.id)}')" class="w-full text-left bg-white border-2 rounded-2xl p-4 transition ${r.id === curId ? "border-indigo-600 bg-indigo-50" : "border-slate-200 hover:border-indigo-300 hover:shadow-md"}">
-      <div class="flex items-start justify-between gap-2"><div class="font-bold text-slate-800 text-lg">${esc(r.name)}</div>${r.id === curId ? '<span class="text-[10px] bg-indigo-600 text-white rounded-full px-2 py-0.5 whitespace-nowrap">กำลังดู</span>' : (r.id === last ? '<span class="text-[10px] bg-amber-100 text-amber-800 rounded-full px-2 py-0.5 whitespace-nowrap">ดูล่าสุด</span>' : '<i class="fa-solid fa-chevron-right text-slate-300 mt-1"></i>')}</div>
+      <div class="flex items-start justify-between gap-2"><div class="min-w-0"><div class="font-bold text-slate-800 text-lg break-words">${esc(r.subject || r.name)}</div>${r.subject ? `<div class="text-xs text-slate-500">ห้อง ${esc(r.name)}</div>` : ""}</div>${r.id === curId ? '<span class="text-[10px] bg-indigo-600 text-white rounded-full px-2 py-0.5 whitespace-nowrap">กำลังดู</span>' : (r.id === last ? '<span class="text-[10px] bg-amber-100 text-amber-800 rounded-full px-2 py-0.5 whitespace-nowrap">ดูล่าสุด</span>' : '<i class="fa-solid fa-chevron-right text-slate-300 mt-1"></i>')}</div>
       ${r.desc ? `<div class="text-xs text-slate-600 mt-0.5"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-500"></i>สอน: ${esc(r.desc)}</div>` : ""}
       <div class="text-xs text-slate-500 mt-1">${r.teacher ? "ครู " + esc(r.teacher) : ""}${r.class ? (r.teacher ? " · " : "") + "ห้อง/กลุ่มของฉัน " + esc(r.class) : ""}</div></button>`).join("");
 }
@@ -742,7 +753,7 @@ async function fetchStudent() {
   return true;
 }
 const loadStudentScores = (btn) => run(btn, "กำลังโหลด...", fetchStudent);
-const setStTab = (t) => showView("studentDashboard", t);
+const setStTab = (t) => { showView("studentDashboard", t); window.scrollTo(0, 0); };
 
 function studentLogout() {
   if (currentUser && currentUser.email && currentUser.token) postData({ action: "logout", email: currentUser.email, token: currentUser.token }, 5000).catch(() => {});
@@ -760,18 +771,21 @@ function renderStudent() {
   const unread = d && d.notes ? d.notes.length : 0;
   $("stHeader").innerHTML = `<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
     <div class="h-1.5 bg-gradient-to-r from-indigo-900 via-indigo-700 to-[#c9a227]"></div>
-    <div class="p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
-     <div class="flex items-center gap-4 min-w-0">
-      <div class="w-16 h-16 text-4xl rounded-full bg-indigo-50 ring-2 ring-[#c9a227] flex items-center justify-center shrink-0 overflow-hidden">${avSpan(me.avatar)}</div>
-      <div class="min-w-0"><div class="text-xs tracking-wide text-slate-500">ระบบตรวจสอบผลการเรียน</div>
-       <h2 class="text-xl font-bold text-slate-900 leading-tight break-words">${esc(me.name || me.nick)}</h2>
-       <p class="text-sm text-slate-600">รหัสนักเรียน ${esc(me.studentId)}${me.no ? " · เลขที่ " + esc(me.no) : ""}${me.class ? " · ห้อง " + esc(me.class) : ""}</p>
-       ${d && d.room ? `<p class="text-sm text-slate-600">รายวิชา: <b class="text-slate-800">${esc(d.room.name)}</b>${d.room.teacher ? " · ครูผู้สอน " + esc(d.room.teacher) : ""}</p>` : ""}</div></div>
-     <div class="flex flex-wrap gap-2">
-      <button type="button" onclick="openRoomDrawer()" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 max-w-[14rem] truncate"><i class="fa-solid fa-repeat mr-1"></i>${d && d.room ? "เปลี่ยนวิชา" : "เลือกวิชา"}</button>
-      ${d && d.room ? `<button type="button" onclick="loadStudentScores(this)" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"><span><i class="fa-solid fa-rotate mr-1"></i>รีเฟรช</span></button>` : ""}
-      <button type="button" onclick="studentLogout()" class="px-3 py-2 text-sm font-medium rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white"><i class="fa-solid fa-right-from-bracket mr-1"></i>ออกจากระบบ</button></div></div></div>`;
-  $("stTabs").innerHTML = (!d || d.noRoom || d.needClass) ? "" : `<nav class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-x-auto"><div class="flex min-w-max sm:min-w-0">${ST_TABS.map(([id, label, icon]) => `<button type="button" onclick="setStTab('${id}')" class="relative flex-1 whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-[3px] transition ${id === stTab ? "border-[#c9a227] text-indigo-800 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}"><i class="fa-solid ${icon} mr-1.5"></i>${label}${id === "home" && unread ? `<span class="ml-1.5 inline-block align-middle bg-red-600 text-white rounded-full px-1.5 text-[10px] leading-4">${unread}</span>` : ""}</button>`).join("")}</div></nav>`;
+    <div class="p-3 sm:p-5 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+     <div class="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
+      <div class="w-14 h-14 sm:w-16 sm:h-16 text-3xl sm:text-4xl rounded-full bg-indigo-50 ring-2 ring-[#c9a227] flex items-center justify-center shrink-0 overflow-hidden">${avSpan(me.avatar)}</div>
+      <div class="min-w-0"><div class="text-[11px] sm:text-xs tracking-wide text-slate-500">ระบบตรวจสอบผลการเรียน</div>
+       <h2 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight break-words">${esc(me.name || me.nick)}</h2>
+       <p class="text-xs sm:text-sm text-slate-600">รหัสนักเรียน ${esc(me.studentId)}${me.no ? " · เลขที่ " + esc(me.no) : ""}${me.class ? " · ห้อง " + esc(me.class) : ""}</p>
+       ${d && d.room ? `<p class="text-xs sm:text-sm text-slate-600">${(() => { const sj = courseOf(d.teacher).name || (d.teacher && d.teacher.subject) || ""; return sj ? "รายวิชา: <b class=\"text-slate-800\">" + esc(sj) + "</b> · ห้อง " + esc(d.room.name) : "ห้องเรียน: <b class=\"text-slate-800\">" + esc(d.room.name) + "</b>"; })()}${d.room.teacher ? " · ครูผู้สอน " + esc(d.room.teacher) : ""}</p>` : ""}</div></div>
+     <div class="grid grid-cols-3 gap-2 w-full sm:w-auto sm:flex">
+      <button type="button" onclick="openRoomDrawer()" class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-repeat mr-1"></i>${d && d.room ? "เปลี่ยนวิชา" : "เลือกวิชา"}</button>
+      ${d && d.room ? `<button type="button" onclick="loadStudentScores(this)" class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"><span><i class="fa-solid fa-rotate mr-1"></i>รีเฟรช</span></button>` : "<span></span>"}
+      <button type="button" onclick="studentLogout()" class="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white"><i class="fa-solid fa-right-from-bracket mr-1"></i>ออก</button></div></div></div>`;
+  const stShort = { home: "หน้าหลัก", work: "คะแนน", att: "เช็คชื่อ", rule: "เกณฑ์", teacher: "ครูผู้สอน", me: "ฉัน" };
+  const badge = (id) => (id === "home" && unread ? `<span class="absolute top-1 left-1/2 ml-3 bg-red-600 text-white rounded-full px-1.5 text-[10px] leading-4">${unread}</span>` : "");
+  $("stTabs").innerHTML = (!d || d.noRoom || d.needClass) ? "" : `<nav class="hidden sm:block bg-white border border-slate-200 rounded-lg shadow-sm overflow-x-auto st-scroll"><div class="flex min-w-max sm:min-w-0">${ST_TABS.map(([id, label, icon]) => `<button type="button" onclick="setStTab('${id}')" class="relative flex-1 whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-[3px] transition ${id === stTab ? "border-[#c9a227] text-indigo-800 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}"><i class="fa-solid ${icon} mr-1.5"></i>${label}${id === "home" && unread ? `<span class="ml-1.5 inline-block align-middle bg-red-600 text-white rounded-full px-1.5 text-[10px] leading-4">${unread}</span>` : ""}</button>`).join("")}</div></nav>
+   <nav class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-4px_14px_rgba(0,0,0,.07)]" style="padding-bottom:env(safe-area-inset-bottom,0px)"><div class="grid grid-cols-6">${ST_TABS.map(([id, label, icon]) => `<button type="button" onclick="setStTab('${id}')" class="relative flex flex-col items-center justify-center gap-0.5 pt-1.5 pb-1.5 min-h-[58px] border-t-[3px] text-[11px] font-semibold leading-tight ${id === stTab ? "border-[#c9a227] text-indigo-800 bg-indigo-50" : "border-transparent text-slate-500"}"><i class="fa-solid ${icon} text-[19px]"></i><span>${stShort[id]}</span>${badge(id)}</button>`).join("")}</div></nav>`;
   $("stBody").innerHTML = d ? (d.needClass ? classPanel() : d.noRoom ? joinPanel() : (ST_VIEWS[stTab] || ST_VIEWS.home)(d))
     : stLoading ? empty('<i class="fa-solid fa-spinner fa-spin mr-2"></i>กำลังโหลดข้อมูลห้องนี้...')
     : stJoinMode ? joinPanel()
@@ -844,7 +858,7 @@ const ST_VIEWS = {
     if (!d.assignments.length) return sBox("งานและคะแนน", "fa-book-open", '<p class="text-center text-slate-500 py-8">ครูผู้สอนยังไม่ได้บันทึกงานในรายวิชานี้</p>');
     const cur = STF.find((f) => f[0] === stFilter) || STF[0];
     const list = d.assignments.filter(cur[2]);
-    const chips = STF.map(([id, label, fn]) => { const n = d.assignments.filter(fn).length; return `<button type="button" onclick="setStFilter('${id}')" class="px-3 py-1.5 rounded-full text-sm border transition ${id === cur[0] ? "bg-indigo-700 text-white border-indigo-700" : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"}">${label} <span class="${id === cur[0] ? "text-indigo-100" : "text-slate-400"}">${n}</span></button>`; }).join("");
+    const chips = STF.map(([id, label, fn]) => { const n = d.assignments.filter(fn).length; return `<button type="button" onclick="setStFilter('${id}')" class="shrink-0 whitespace-nowrap px-3.5 py-2 rounded-full text-sm border transition ${id === cur[0] ? "bg-indigo-700 text-white border-indigo-700" : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"}">${label} <span class="${id === cur[0] ? "text-indigo-100" : "text-slate-400"}">${n}</span></button>`; }).join("");
     const groups = {}; list.forEach((a) => { (groups[a.unit || "งานทั่วไป"] = groups[a.unit || "งานทั่วไป"] || []).push(a); });
     const keys = Object.keys(groups), one = keys.length === 1 && keys[0] === "งานทั่วไป";
     const item = (a) => `<div class="border border-slate-200 rounded-lg p-4 bg-white"><div class="flex justify-between gap-3 items-start"><div class="min-w-0"><div class="font-semibold text-slate-900">${esc(a.name)}</div><div class="text-xs text-slate-500 mt-0.5">${esc(a.cat)}${a.due ? " · กำหนดส่ง " + esc(a.due) : ""}</div></div>
@@ -858,7 +872,7 @@ const ST_VIEWS = {
     return `<div class="space-y-4">
       <div class="grid grid-cols-3 gap-3">${sCard("คะแนนที่ได้", fmt(s.total))}${sCard("คะแนนเต็ม (ที่ตรวจแล้ว)", fmt(s.max))}${sCard("ผลการเรียน", s.final ? esc(s.grade) : "รอประมวลผล", s.pct == null ? "" : "ร้อยละ " + fmt(s.pct))}</div>
       ${sBox("คะแนนแยกตามหมวด", "fa-layer-group", table(th("หมวด", "ได้ / เต็ม (ที่ตรวจแล้ว)", "สัดส่วน", '<span class="block text-right">เต็มทั้งหมด</span>'), catRows, 4) + `<p class="text-xs text-slate-500 mt-3">ดูเกณฑ์การตัดสินผลการเรียนได้ที่เมนู <button type="button" onclick="setStTab('rule')" class="text-indigo-700 underline">เกณฑ์รายวิชา</button></p>`)}
-      ${sBox("รายการงาน", "fa-book-open", `<div class="flex flex-wrap gap-2 mb-3">${chips}</div><p class="text-xs text-slate-500 mb-3">งานสั่งและส่งนอกระบบ หน้านี้แสดงสถานะ คะแนน และข้อเสนอแนะที่ครูผู้สอนบันทึกให้</p>
+      ${sBox("รายการงาน", "fa-book-open", `<div class="flex gap-2 mb-3 overflow-x-auto pb-1 st-scroll">${chips}</div><p class="text-xs text-slate-500 mb-3">งานสั่งและส่งนอกระบบ หน้านี้แสดงสถานะ คะแนน และข้อเสนอแนะที่ครูผู้สอนบันทึกให้</p>
         ${list.length ? keys.map((u) => `<div class="space-y-2 mb-3">${one ? "" : `<h4 class="font-semibold text-slate-700 text-sm mt-2"><i class="fa-solid fa-folder-open text-indigo-700 mr-2"></i>${esc(u)}</h4>`}${groups[u].map(item).join("")}</div>`).join("") : '<p class="text-center text-slate-500 py-6">ไม่มีรายการในหมวดนี้</p>'}`)}
     </div>`;
   },
@@ -876,8 +890,8 @@ const ST_VIEWS = {
   /* ---------- เกณฑ์รายวิชา ---------- */
   rule(d) {
     const t = d.teacher || {}, cv = courseOf(t), k = critOf(t), s = d.summary || {};
-    const courseName = cv.name || (d.room && d.room.desc) || (d.room && d.room.name) || "";
-    const info = kv("ชื่อรายวิชา", courseName) + kv("รหัสวิชา", cv.code) + kv("หน่วยกิต", cv.credits) + kv("จำนวนชั่วโมงเรียน", cv.hours) + kv("ครูผู้สอน", t.name || t.nick) + kv("คำอธิบายรายวิชา", cv.desc) + kv("จุดประสงค์ / ผลการเรียนรู้", cv.objectives);
+    const courseName = cv.name || t.subject || ""; // ไม่ใช้ชื่อห้อง (เช่น AL1) แทนชื่อวิชา
+    const info = kv("ชื่อรายวิชา", courseName) + kv("ห้องเรียนในระบบ", d.room && d.room.name) + kv("รหัสวิชา", cv.code) + kv("หน่วยกิต", cv.credits) + kv("จำนวนชั่วโมงเรียน", cv.hours) + kv("ครูผู้สอน", t.name || t.nick) + kv("คำอธิบายรายวิชา", cv.desc) + kv("จุดประสงค์ / ผลการเรียนรู้", cv.objectives);
     // สัดส่วนคะแนน: รวมงานตามหมวด + คะแนนจิตพิสัย (เช็คชื่อ)
     const byCat = {}; d.assignments.forEach((a) => { const x = (byCat[a.cat] = byCat[a.cat] || { n: 0, max: 0 }); x.n++; x.max += a.max; });
     const parts = Object.keys(byCat).map((n) => ({ name: n, n: byCat[n].n, max: byCat[n].max }));
@@ -890,7 +904,7 @@ const ST_VIEWS = {
     }).join("") + `<tr class="${s.final && s.grade === "0" ? "bg-red-50 font-semibold" : ""}">${td("0", "font-bold")}${td(GRADE_TEXT["0"])}${td("ต่ำกว่าร้อยละ " + fmt(k.g[6]))}</tr>`;
     const attRows = ATT.map((x, i) => `<tr>${td(badge(x, ATT_CLS))}${td(fmt(k.a[i]) + " คะแนน / ครั้ง")}</tr>`).join("");
     return `<div class="space-y-4">
-      ${sBox("ข้อมูลรายวิชา", "fa-book-bookmark", info ? `<dl>${info}</dl>` : '<p class="text-sm text-slate-500 py-2">ครูผู้สอนยังไม่ได้กรอกข้อมูลรายวิชา</p>')}
+      ${sBox("ข้อมูลรายวิชา", "fa-book", info ? `<dl>${info}</dl>` : '<p class="text-sm text-slate-500 py-2">ครูผู้สอนยังไม่ได้กรอกข้อมูลรายวิชา</p>')}
       ${sBox("สัดส่วนคะแนนของรายวิชา", "fa-chart-pie", parts.length ? table(th("หมวดคะแนน", "จำนวนงาน", "คะแนนเต็ม", "สัดส่วน"), shareRows + `<tr class="bg-slate-50 font-semibold">${td("รวม")}${td("")}${td(fmt(total) + " คะแนน")}${td("")}</tr>`, 4) + (Math.abs(total - FULL_SCORE_UI) > 0.001 ? `<p class="text-xs text-slate-500 mt-3">หมายเหตุ: ขณะนี้คะแนนเต็มรวมที่ครูกำหนดไว้เท่ากับ ${fmt(total)} คะแนน ครูผู้สอนอาจเพิ่มงานในภายหลัง ผลการเรียนจะประกาศเมื่อคะแนนเต็มรวมครบ ${FULL_SCORE_UI} คะแนนและตรวจครบทุกงาน</p>` : "") : '<p class="text-sm text-slate-500">ยังไม่มีข้อมูลงานในรายวิชานี้</p>')}
       ${sBox("เกณฑ์การตัดสินผลการเรียน", "fa-scale-balanced", table(th("ระดับผลการเรียน", "ความหมาย", "ช่วงคะแนน"), gRows, 3) + `<p class="text-xs text-slate-500 mt-3">คิดจากร้อยละของคะแนนรวมที่ได้ เทียบกับคะแนนเต็มรวม เมื่อครบ ${FULL_SCORE_UI} คะแนนและตรวจครบทุกงานแล้ว${s.final ? "" : " (ขณะนี้ผลการเรียนของคุณอยู่ระหว่างประมวลผล)"}</p>`)}
       ${sBox("เกณฑ์คะแนนจิตพิสัย (เช็คชื่อ)", "fa-calendar-check", k.m > 0
@@ -1084,10 +1098,11 @@ function leaveRoom() {
 }
 function createRoom(btn) {
   run(btn, "กำลังสร้าง...", async () => {
-    const name = $("newRoomName").value.trim(), desc = $("newRoomDesc").value.trim();
+    const subject = $("newRoomSubject").value.trim(), name = $("newRoomName").value.trim(), desc = $("newRoomDesc").value.trim();
+    if (!subject) throw new Error("กรุณากรอกชื่อวิชา (เช่น ภาษาไทย)");
     if (!name) throw new Error("กรุณากรอกชื่อห้องเรียน");
     if (!desc) throw new Error("กรุณากรอกว่าสอนห้องอะไร (เช่น ห้อง A, B, C · พฤหัส คาบ 3)");
-    const r = await adminCall({ action: "adminCreateRoom", name, desc });
+    const r = await adminCall({ action: "adminCreateRoom", subject, name, desc });
     toast("สร้างห้องแล้ว แจกรหัส/ลิงก์/QR ให้นักเรียนที่แท็บ ตั้งค่าห้อง", "success");
     await enterRoom(r.roomId, "settings");
     return true;
@@ -1095,10 +1110,11 @@ function createRoom(btn) {
 }
 function saveRoomInfo(btn) {
   run(btn, "กำลังบันทึก...", async () => {
-    const name = $("rmName").value.trim();
+    const name = $("rmName").value.trim(), subject = $("rmSubject").value.trim();
+    if (!subject) throw new Error("กรุณากรอกชื่อวิชา (เช่น ภาษาไทย)");
     if (!name) throw new Error("กรุณากรอกชื่อห้อง");
     if (!$("rmDesc").value.trim()) throw new Error("กรุณากรอกว่าสอนห้องอะไร (เช่น ห้อง A, B, C · พฤหัส คาบ 3)");
-    await adminCall({ action: "adminUpdateRoom", roomId: curRoom, op: "edit", name, desc: $("rmDesc").value.trim() });
+    await adminCall({ action: "adminUpdateRoom", roomId: curRoom, op: "edit", subject, name, desc: $("rmDesc").value.trim() });
     await loadAdminData();
     toast("บันทึกข้อมูลห้องแล้ว", "success");
     return true;
@@ -1242,7 +1258,7 @@ const AVIEWS = {
       <div class="flex flex-wrap justify-between items-center gap-2"><div><h3 class="font-bold text-slate-700 text-lg"><i class="fa-solid fa-school text-indigo-600 mr-2"></i>ห้องเรียนของฉัน</h3><p class="text-xs text-slate-500">กดเข้าไปในห้องไหน ก็จะจัดการเฉพาะห้องนั้น นักเรียน งาน คะแนน เช็คชื่อ และประกาศแยกกันทุกห้อง ไม่ปนกัน</p></div>
        <div class="flex gap-2"><button type="button" onclick="setAdminTab('profile')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm"><i class="fa-solid fa-id-badge mr-1"></i>โปรไฟล์ครู</button><button type="button" onclick="setAdminTab('resets')" class="${pendReset() ? "bg-red-600 hover:bg-red-700 text-white" : "bg-slate-200 hover:bg-slate-300 text-slate-700"} px-3 py-2 rounded-lg text-sm"><i class="fa-solid fa-key mr-1"></i>คำขอรีเซ็ตรหัส${pendReset() ? ` <span class="ml-1 bg-white text-red-700 rounded-full px-1.5 text-xs font-bold">${pendReset()}</span>` : ""}</button>${adminRole === "main" ? '<button type="button" onclick="setAdminTab(\'admins\')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm"><i class="fa-solid fa-user-shield mr-1"></i>จัดการแอดมิน</button>' : ""}</div></div>
       ${rs.length ? "" : '<div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm"><b>ขั้นแรก:</b> สร้างห้องเรียนก่อน แล้วกดเข้าไปในห้องเพื่อจัดการนักเรียน งาน คะแนน และเช็คชื่อ</div>'}
-      <div class="p-3 bg-slate-50 border rounded-xl grid md:grid-cols-5 gap-2 items-end"><div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">ชื่อห้องเรียน / วิชา <span class="text-red-500">*</span></label><input id="newRoomName" maxlength="60" class="${inC}" placeholder="เช่น ภาษาอังกฤษ ม.4"></div><div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">สอนห้องอะไร (อธิบายสั้น ๆ) <span class="text-red-500">*</span></label><input id="newRoomDesc" maxlength="200" class="${inC}" placeholder="เช่น สอนห้อง A, B, C · พฤหัส คาบ 3"></div><button type="button" onclick="createRoom(this)" class="${btnP}"><span><i class="fa-solid fa-plus mr-1"></i>สร้างห้อง</span></button></div>
+      <div class="p-3 bg-slate-50 border rounded-xl grid md:grid-cols-6 gap-2 items-end"><div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">ชื่อวิชา <span class="text-red-500">*</span></label><input id="newRoomSubject" maxlength="100" class="${inC}" placeholder="เช่น ภาษาไทย"></div><div class="md:col-span-1"><label class="text-xs font-semibold text-slate-600">ชื่อห้องเรียน <span class="text-red-500">*</span></label><input id="newRoomName" maxlength="60" class="${inC}" placeholder="เช่น AL1"></div><div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">สอนห้องอะไร (อธิบายสั้น ๆ) <span class="text-red-500">*</span></label><input id="newRoomDesc" maxlength="200" class="${inC}" placeholder="เช่น สอนห้อง A, B, C · พฤหัส คาบ 3"></div><button type="button" onclick="createRoom(this)" class="${btnP}"><span><i class="fa-solid fa-plus mr-1"></i>สร้างห้อง</span></button></div>
       <div class="grid md:grid-cols-2 gap-3">${cards}</div></div>`;
   },
 
@@ -1251,7 +1267,8 @@ const AVIEWS = {
     if (!r) return empty("ไม่พบห้องเรียน");
     return `<div class="space-y-5 max-w-3xl">
       <div class="p-4 bg-slate-50 border rounded-xl space-y-2"><h4 class="font-semibold text-slate-700">ข้อมูลห้อง</h4>
-       <div><label class="text-xs font-semibold text-slate-600">ชื่อห้องเรียน / วิชา</label><input id="rmName" maxlength="60" value="${esc(r.name)}" class="${inC}"></div>
+       <div><label class="text-xs font-semibold text-slate-600">ชื่อวิชา <span class="text-red-500">*</span> <span class="font-normal text-slate-400">(นักเรียนเห็น เช่น ภาษาไทย)</span></label><input id="rmSubject" maxlength="100" value="${esc(courseOf(adminData.config).name || "")}" class="${inC}" placeholder="เช่น ภาษาไทย"></div>
+       <div><label class="text-xs font-semibold text-slate-600">ชื่อห้องเรียน <span class="font-normal text-slate-400">(ใช้เรียกในระบบ เช่น AL1)</span></label><input id="rmName" maxlength="60" value="${esc(r.name)}" class="${inC}"></div>
        <div><label class="text-xs font-semibold text-slate-600">สอนห้องอะไร / คำอธิบายสั้น ๆ (นักเรียนเห็นด้วย) <span class="text-red-500">*</span></label><textarea id="rmDesc" rows="2" maxlength="200" class="${inC}" placeholder="เช่น ห้อง A, B, C · พฤหัส คาบ 3">${esc(r.desc)}</textarea></div>
        <button type="button" onclick="saveRoomInfo(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึก</span></button></div>
       <div class="p-4 bg-white border rounded-xl space-y-2"><h4 class="font-semibold text-slate-700">เชิญนักเรียนเข้าห้องนี้</h4><p class="text-xs text-slate-500">นักเรียนสมัครบัญชีแล้วใส่รหัสห้อง (หรือกดลิงก์ / สแกน QR) จากนั้นเลือกห้องและกลุ่มของตัวเอง ระบบจะแยกให้เองในห้องนี้</p>
@@ -1416,7 +1433,7 @@ const AVIEWS = {
       <div class="flex flex-wrap gap-2"><button type="button" onclick="saveCriteria(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกเกณฑ์</span></button>
        <button type="button" onclick="resetCriteriaInputs()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm">ใช้ค่ามาตรฐาน (80/75/70/65/60/55/50)</button></div>
       <hr class="my-2">
-      <div><h3 class="font-bold text-slate-700 text-lg"><i class="fa-solid fa-book-bookmark text-indigo-600 mr-2"></i>ข้อมูลรายวิชา (แสดงให้นักเรียน)</h3><p class="text-xs text-slate-500">นักเรียนจะเห็นในเมนู "เกณฑ์รายวิชา" พร้อมเกณฑ์เกรดและสัดส่วนคะแนนที่ตั้งไว้ด้านบน · ปุ่มนี้บันทึกเฉพาะข้อมูลรายวิชา (ถ้าแก้เกณฑ์ด้านบนค้างไว้ ให้กด "บันทึกเกณฑ์" ก่อน)</p></div>
+      <div><h3 class="font-bold text-slate-700 text-lg"><i class="fa-solid fa-book text-indigo-600 mr-2"></i>ข้อมูลรายวิชา (แสดงให้นักเรียน)</h3><p class="text-xs text-slate-500">นักเรียนจะเห็นในเมนู "เกณฑ์รายวิชา" พร้อมเกณฑ์เกรดและสัดส่วนคะแนนที่ตั้งไว้ด้านบน · ปุ่มนี้บันทึกเฉพาะข้อมูลรายวิชา (ถ้าแก้เกณฑ์ด้านบนค้างไว้ ให้กด "บันทึกเกณฑ์" ก่อน)</p></div>
       <div class="p-4 bg-slate-50 border rounded-xl space-y-3">
        <div class="grid md:grid-cols-4 gap-3"><div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">ชื่อรายวิชา</label><input id="cvName" maxlength="150" value="${esc(cv.name)}" class="${inC}"></div>
         <div><label class="text-xs font-semibold text-slate-600">รหัสวิชา</label><input id="cvCode" maxlength="30" value="${esc(cv.code)}" class="${inC}" placeholder="เช่น 20001-1001"></div>
@@ -1700,8 +1717,12 @@ async function importCsv(inp) {
   } catch (e) { toast(e.message); }
 }
 
+// รหัสปีการศึกษา 2 หลักท้าย พ.ศ. (ปีการศึกษาเริ่ม พ.ค.) เช่น ต.ค. 2569 -> "69", ม.ค. 2571 -> "70" จนถึง เม.ย. แล้วเปลี่ยนเป็น "71" ตอน พ.ค.
+const idYear = () => { const d = new Date(); let be = d.getFullYear() + 543; if (d.getMonth() < 4) be -= 1; return String(be % 100).padStart(2, "0"); };
+document.addEventListener("DOMContentLoaded", () => { const el = $("regStudentId"); if (el) el.placeholder = "เช่น " + idYear() + "XXXXXXX"; });
 function downloadTemplate() {
-  const blob = new Blob(["\uFEFFเลขที่,รหัสประจำตัว,ชื่อ-นามสกุล,ห้อง\n1,660001,นายตัวอย่าง ใจดี,ปวช/A/L1\n2,660002,นางสาวตัวอย่าง รักเรียน,ปวส/B/L5\n"], { type: "text/csv;charset=utf-8" });
+  const y = idYear();
+  const blob = new Blob(["\uFEFFเลขที่,รหัสประจำตัว,ชื่อ-นามสกุล,ห้อง\n1," + y + "0000001,นายตัวอย่าง ใจดี,ปวช/A/L1\n2," + y + "0000002,นางสาวตัวอย่าง รักเรียน,ปวส/B/L5\n"], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = "student_template.csv"; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
