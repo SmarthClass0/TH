@@ -1226,8 +1226,7 @@ function renderAdmin() {
   $("adminTabs").innerHTML = inRoom ? TABS.map(([id, label, icon]) => `<button type="button" onclick="setAdminTab('${id}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium border transition ${id === adminTab ? "bg-indigo-700 text-white border-indigo-700" : "bg-white text-slate-600 hover:bg-indigo-50"}"><i class="fa-solid ${icon} mr-1"></i>${label}</button>`).join("") : "";
   $("adminFilterBar").classList.toggle("hidden", !FILTER_TABS.includes(adminTab) || !inRoom);
   $("adminRoom").innerHTML = '<option value="">ดูทั้งหมดในวิชานี้</option>' + filterOpts(adminRoom);
-  const warn = adminData && adminData.warnDefaultAdmin ? `<div class="mb-4 p-3 rounded-lg border-2 border-red-500 bg-red-50 text-red-800 text-sm"><b><i class="fa-solid fa-triangle-exclamation mr-1"></i>ความปลอดภัย:</b> ระบบยังใช้ชื่อผู้ใช้/รหัสผ่านผู้ดูแลหลักเริ่มต้นที่อยู่ในโค้ด กรุณาตั้ง <b>ADMIN_USER</b> และ <b>ADMIN_PASS</b> ที่ Apps Script &gt; Project Settings &gt; Script Properties ทันที แล้วข้อความนี้จะหายไป</div>` : "";
-  $("adminPanel").innerHTML = warn + AVIEWS[adminTab]();
+  $("adminPanel").innerHTML = AVIEWS[adminTab]();
   if (adminTab === "criteria") critPreview();
   if (adminTab === "assign") renderAsgFiles();
 }
