@@ -239,7 +239,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEUcm3PNWFGI_3tldA1
 <footer class="text-center text-xs text-slate-400 pb-6">© ห้องเรียนออนไลน์</footer>
 
 <script>
-const API_TIMEOUT_MS = 20000;
+const API_TIMEOUT_MS = 25000;
 const RESEND_SECONDS = 60;
 let currentUser = null;      // {email, name, studentId, class, no, nick, avatar, bio, token}
 const LEVELS = ["ปวช", "ปวส"], ROOMS = ["A", "B", "C", "D"], SUBS = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"];
@@ -269,6 +269,8 @@ function render(v, tab) {
 function showView(v, tab) { navStack.push({ v, tab }); history.pushState({}, ""); render(v, tab); }
 function resetNav(v, tab) { navStack = [{ v: "roleSelect" }]; if (v !== "roleSelect") showView(v, tab); else render("roleSelect"); }
 window.addEventListener("popstate", () => {
+  const dr = $("roomDrawer");
+  if (dr && !dr.classList.contains("hidden")) { closeRoomDrawer(); history.pushState({}, ""); return; } // ย้อนกลับ = ปิดลิ้นชัก (ไม่เสียหน้าที่อยู่)
   if (navStack.length > 1) navStack.pop();
   const t = navStack[navStack.length - 1];
   render(t.v, t.tab);
@@ -453,7 +455,7 @@ function handleStudentRegister() {
     $("otpInput").value = "";
     showView("otpForm");
     startCooldown(RESEND_SECONDS);
-    toast("ส่งรหัส OTP ไปที่ " + (r.sentTo || email) + " แล้ว (โควตาวันนี้เหลือ " + r.quota + ") ตรวจกล่องสแปมด้วย", "success");
+    toast("ส่งรหัส OTP ไปที่ " + (r.sentTo || email) + " แล้ว ตรวจกล่องสแปมด้วย", "success");
     return true;
   });
 }
@@ -481,7 +483,7 @@ function handleResendOtp() {
       toast(r.message);
       return false;
     }
-    toast("ส่งรหัส OTP ใหม่ไปที่ " + (r.sentTo || tempRegisterEmail) + " แล้ว (โควตาวันนี้เหลือ " + r.quota + ")", "success");
+    toast("ส่งรหัส OTP ใหม่ไปที่ " + (r.sentTo || tempRegisterEmail) + " แล้ว", "success");
     return true;
   }).then((ok) => { if (ok) startCooldown(RESEND_SECONDS); });
 }
@@ -743,6 +745,7 @@ const loadStudentScores = (btn) => run(btn, "กำลังโหลด...", fe
 const setStTab = (t) => showView("studentDashboard", t);
 
 function studentLogout() {
+  if (currentUser && currentUser.email && currentUser.token) postData({ action: "logout", email: currentUser.email, token: currentUser.token }, 5000).catch(() => {});
   clearSess(); clearInterval(stTimer);
   currentUser = null; stData = null; stRoom = ""; stRooms = []; stLoading = false; stJoinMode = false;
   $("roomDrawer").classList.add("hidden"); $("roomDrawerPanel").classList.add("translate-x-full");
@@ -964,8 +967,9 @@ function changePw(btn) {
     const r = await postData({ action: "changePassword", email: currentUser.email, token: currentUser.token, oldPassword: o, newPassword: n });
     if (r.code === "AUTH") { toast(r.message); studentLogout(); return false; }
     if (r.status !== "success") { toast(r.message); return false; }
+    if (r.token) currentUser.token = r.token;
     $("pwOld").value = ""; $("pwNew").value = "";
-    toast("เปลี่ยนรหัสผ่านแล้ว", "success");
+    toast("เปลี่ยนรหัสผ่านแล้ว (อุปกรณ์อื่นที่ล็อกอินอยู่จะถูกออกจากระบบ)", "success");
     return true;
   });
 }
@@ -1222,7 +1226,8 @@ function renderAdmin() {
   $("adminTabs").innerHTML = inRoom ? TABS.map(([id, label, icon]) => `<button type="button" onclick="setAdminTab('${id}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium border transition ${id === adminTab ? "bg-indigo-700 text-white border-indigo-700" : "bg-white text-slate-600 hover:bg-indigo-50"}"><i class="fa-solid ${icon} mr-1"></i>${label}</button>`).join("") : "";
   $("adminFilterBar").classList.toggle("hidden", !FILTER_TABS.includes(adminTab) || !inRoom);
   $("adminRoom").innerHTML = '<option value="">ดูทั้งหมดในวิชานี้</option>' + filterOpts(adminRoom);
-  $("adminPanel").innerHTML = AVIEWS[adminTab]();
+  const warn = adminData && adminData.warnDefaultAdmin ? `<div class="mb-4 p-3 rounded-lg border-2 border-red-500 bg-red-50 text-red-800 text-sm"><b><i class="fa-solid fa-triangle-exclamation mr-1"></i>ความปลอดภัย:</b> ระบบยังใช้ชื่อผู้ใช้/รหัสผ่านผู้ดูแลหลักเริ่มต้นที่อยู่ในโค้ด กรุณาตั้ง <b>ADMIN_USER</b> และ <b>ADMIN_PASS</b> ที่ Apps Script &gt; Project Settings &gt; Script Properties ทันที แล้วข้อความนี้จะหายไป</div>` : "";
+  $("adminPanel").innerHTML = warn + AVIEWS[adminTab]();
   if (adminTab === "criteria") critPreview();
   if (adminTab === "assign") renderAsgFiles();
 }
@@ -1623,7 +1628,7 @@ function saveCriteria(btn) {
 }
 function exportStudents() {
   const l = studs(false);
-  const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const q = (v) => { let t = String(v == null ? "" : v); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; }; // กัน CSV injection
   const csv = "\uFEFF" + ["เลขที่,รหัสนักเรียน,ชื่อ-นามสกุล,ห้อง,อีเมล,สถานะบัญชี"].concat(l.map((s) => [s.no, s.studentId, s.name, s.class, s.email, !s.registered ? "ยังไม่สมัคร" : s.verified ? "ยืนยันแล้ว" : "รอยืนยัน OTP"].map(q).join(","))).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "students.csv"; a.click();
@@ -1720,6 +1725,7 @@ function handleAdminLogin() {
 }
 
 function adminLogout() {
+  if (adminToken) postData({ action: "adminLogout", adminToken }, 5000).catch(() => {});
   clearSess(); adminOnline = null; adminToken = null; adminData = null; curRoom = ""; adminRole = ""; adminUser = "";
   navStack = [{ v: "roleSelect" }, { v: "adminLoginForm" }];
   render("adminLoginForm");
@@ -1745,7 +1751,7 @@ function clearSess() { lastSessStr = ""; try { sessionStorage.removeItem(SESS_KE
 function saveSess() {
   try {
     let str = "";
-    if (currentUser) str = JSON.stringify({ r: "s", last: lastActive, u: currentUser, room: stRoom, tab: stTab });
+    if (currentUser) { const u = Object.assign({}, currentUser); if (String(u.avatar || "").indexOf("data:image/") === 0) u.avatar = ""; str = JSON.stringify({ r: "s", last: lastActive, u, room: stRoom, tab: stTab }); }
     else if (adminToken) str = JSON.stringify({ r: "a", last: lastActive, t: adminToken, role: adminRole, user: adminUser, room: curRoom, tab: adminTab });
     if (!str) { lastSessStr = ""; sessionStorage.removeItem(SESS_KEY); }
     else if (str !== lastSessStr) { lastSessStr = str; sessionStorage.setItem(SESS_KEY, str); } // ไม่เขียนซ้ำถ้าไม่มีอะไรเปลี่ยน (รูปโปรไฟล์ใหญ่)
