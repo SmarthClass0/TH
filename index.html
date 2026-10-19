@@ -111,6 +111,23 @@ body.side-open{overflow:hidden}
  body.side-open{overflow:auto}
  .sb-item{min-height:46px;font-size:.92rem}
 }
+#btnMini{display:none}
+@media (min-width:1024px){
+ body.has-side #btnMini{display:flex}
+ #sidebar,#shell{transition:width .2s ease,margin-left .2s ease}
+ body.side-mini{--side-w:68px}
+ body.side-mini .sb-logo{justify-content:center;padding-left:0;padding-right:0}
+ body.side-mini .sb-logo .leading-tight{display:none}
+ body.side-mini .sb-user{justify-content:center;padding:.8rem 0}
+ body.side-mini .sb-user>span:last-child{display:none}
+ body.side-mini .sb-av{width:2.5rem;height:2.5rem;font-size:1.25rem}
+ body.side-mini .sb-sec{height:1px;padding:0;margin:.45rem .9rem;font-size:0;background:#e5e7eb;overflow:hidden}
+ body.side-mini .sb-item{justify-content:center;padding:.7rem 0;gap:0}
+ body.side-mini .sb-item span.flex-1{display:none}
+ body.side-mini .sb-item i{width:auto;font-size:1.1rem}
+ body.side-mini .sb-badge{position:absolute;top:.35rem;right:.6rem;min-width:1rem;padding:0 .25rem;text-align:center;font-size:.62rem;line-height:1rem}
+ body.side-mini .sb-room,body.side-mini .sb-note{display:none}
+}
 @media (max-width:640px){
  #pageHead{padding:.7rem .9rem}#pageTitle{font-size:1.1rem}#pageCrumb{font-size:.78rem}
 }
@@ -131,6 +148,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEUcm3PNWFGI_3tldA1
 <div id="shell">
 <header id="topbar">
  <button id="btnMenu" type="button" onclick="toggleSide()" aria-label="เปิดเมนู" class="tb-btn"><i class="fa-solid fa-bars"></i></button>
+ <button id="btnMini" type="button" onclick="toggleMini()" aria-label="ย่อ/ขยายเมนู" title="ย่อ/ขยายเมนู" class="tb-btn"><i class="fa-solid fa-bars"></i></button>
  <button id="btnBack" type="button" onclick="history.back()" class="hidden tb-btn" title="ย้อนกลับ"><i class="fa-solid fa-arrow-left"></i></button>
  <button type="button" onclick="goHome()" class="top-brand flex items-center gap-2.5 text-left min-w-0">
   <i class="fa-solid fa-graduation-cap text-2xl"></i>
@@ -372,8 +390,22 @@ const toggleSide = () => document.body.classList.toggle("side-open");
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSide(); });
 window.addEventListener("resize", () => { if (window.innerWidth >= 1024) closeSide(); });
 
+const MINI_KEY = "sideMini";
+const miniPref = () => { try { return localStorage.getItem(MINI_KEY); } catch (_) { return null; } };
+function applyMini() { // จำที่ผู้ใช้เลือกไว้ ถ้ายังไม่เคยเลือก: จอคอมเล็ก (1024-1279px) ย่อให้อัตโนมัติ
+  const pref = miniPref(), w = window.innerWidth;
+  document.body.classList.toggle("side-mini", pref === "1" ? true : pref === "0" ? false : (w >= 1024 && w < 1280));
+}
+function toggleMini() {
+  const now = !document.body.classList.contains("side-mini");
+  try { localStorage.setItem(MINI_KEY, now ? "1" : "0"); } catch (_) {}
+  applyMini();
+}
+window.addEventListener("resize", applyMini);
+applyMini();
+
 const sbSec = (label) => `<div class="sb-sec">${label}</div>`;
-const sbItem = (o) => `<button type="button" onclick="closeSide();${o.js}" class="sb-item ${o.on ? "on" : ""} ${o.cls || ""}"${o.on ? ' aria-current="page"' : ""}><i class="fa-solid ${o.icon}"></i><span class="flex-1">${o.label}</span>${o.badge ? `<span class="sb-badge">${o.badge}</span>` : ""}</button>`;
+const sbItem = (o) => `<button type="button" onclick="closeSide();${o.js}" title="${o.label}" class="sb-item ${o.on ? "on" : ""} ${o.cls || ""}"${o.on ? ' aria-current="page"' : ""}><i class="fa-solid ${o.icon}"></i><span class="flex-1">${o.label}</span>${o.badge ? `<span class="sb-badge">${o.badge}</span>` : ""}</button>`;
 const ADMIN_GLOBAL_TITLES = { rooms: "ห้องเรียนของฉัน", profile: "โปรไฟล์ครู", resets: "คำขอรีเซ็ตรหัสผ่าน", admins: "จัดการแอดมิน" };
 
 function renderChrome() {
@@ -426,7 +458,7 @@ function renderChrome() {
     foot = `<button type="button" onclick="refreshAdmin(this)" class="sb-item"><i class="fa-solid fa-rotate"></i><span class="flex-1">รีเฟรชข้อมูล</span></button>`
       + sbItem({ label: "ออกจากระบบ", icon: "fa-right-from-bracket", js: "adminLogout()", cls: "out" });
   }
-  $("sbUser").innerHTML = `<button type="button" onclick="closeSide();openProfile()" class="sb-user"><span class="sb-av">${avSpan(who.a)}</span><span class="min-w-0"><span class="block font-bold text-stone-800 truncate">${esc(who.n)}</span><span class="block text-xs text-stone-500 truncate">${esc(who.s)}</span></span></button>`;
+  $("sbUser").innerHTML = `<button type="button" onclick="closeSide();openProfile()" title="${esc(who.n)}" class="sb-user"><span class="sb-av">${avSpan(who.a)}</span><span class="min-w-0"><span class="block font-bold text-stone-800 truncate">${esc(who.n)}</span><span class="block text-xs text-stone-500 truncate">${esc(who.s)}</span></span></button>`;
   $("sbMenu").innerHTML = menu;
   $("sbFoot").innerHTML = foot;
   $("pageTitle").textContent = title;
