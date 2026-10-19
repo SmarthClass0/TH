@@ -389,19 +389,18 @@ function renderChrome() {
     const ready = !!d && !d.noRoom && !d.needClass;
     const unread = d && d.notes ? d.notes.length : 0;
     const acct = ST_ACCT.includes(stTab);
-    const curId = acct ? "" : (stRoom || (d && d.room && d.room.id) || "");
     who = { a: me.avatar, n: me.name || me.nick || "นักเรียน", s: "นักเรียน" + (me.studentId ? " · " + me.studentId : "") };
-    menu += sbSec("บัญชีของฉัน") + sbItem({ label: "ข้อมูลของฉัน", icon: "fa-user", js: "setStTab('me')", on: stTab === "me" });
-    menu += sbSec("วิชาเรียน");
-    if (!stRooms.length) menu += '<div class="sb-note">ยังไม่มีวิชา กดเข้าร่วมห้องเรียนด้านล่างเพื่อเริ่มต้น</div>';
-    stRooms.forEach((r) => {
-      const isCur = r.id === curId;
-      menu += sbItem({ label: esc(r.subject || r.name), icon: "fa-book", js: `pickRoom('${esc(r.id)}')`, cls: isCur ? "cur" : "" });
-      if (isCur && ready && d.room && d.room.id === r.id) menu += ST_TABS.map(([id, label, icon]) => sbItem({ label, icon, js: `setStTab('${id}')`, on: id === stTab, cls: "sub", badge: id === "home" ? unread : 0 })).join("");
-    });
-    menu += sbItem({ label: "เข้าร่วมห้องเรียน", icon: "fa-plus", js: "setStTab('join')", on: stTab === "join" });
-    menu += sbSec("ตั้งค่า") + sbItem({ label: "เปลี่ยนรหัสผ่าน", icon: "fa-key", js: "setStTab('pw')", on: stTab === "pw" });
-    if (acct) { title = ST_ACCT_TITLES[stTab] || "ข้อมูลของฉัน"; crumb = "บัญชีของฉัน"; }
+    menu += sbSec("เมนูหลัก")
+      + sbItem({ label: "หน้าหลัก", icon: "fa-house", js: "setStTab('rooms')", on: stTab === "rooms" })
+      + sbItem({ label: "ข้อมูลของฉัน", icon: "fa-user", js: "setStTab('me')", on: stTab === "me" });
+    if (ready && d.room) {
+      menu += sbSec("ห้อง: " + esc(d.room.subject || d.room.name))
+        + ST_TABS.map(([id, label, icon]) => sbItem({ label, icon, js: `setStTab('${id}')`, on: id === stTab, badge: id === "home" ? unread : 0 })).join("");
+    }
+    menu += sbSec("อื่น ๆ")
+      + sbItem({ label: "เข้าร่วมห้องเรียน", icon: "fa-plus", js: "setStTab('join')", on: stTab === "join" })
+      + sbItem({ label: "เปลี่ยนรหัสผ่าน", icon: "fa-key", js: "setStTab('pw')", on: stTab === "pw" });
+    if (acct) { title = ST_ACCT_TITLES[stTab] || "หน้าหลัก"; crumb = stTab === "rooms" ? "เลือกห้องเรียน" : "บัญชีของฉัน"; }
     else { title = (ST_TABS.find((x) => x[0] === stTab) || ST_TABS[0])[1]; crumb = d && d.room ? esc(d.room.subject || d.room.name) : ""; }
     foot = sbItem({ label: "ออกจากระบบ", icon: "fa-right-from-bracket", js: "studentLogout()", cls: "out" });
   } else {
@@ -852,8 +851,8 @@ async function autoJoin() { // ลิงก์/QR เชิญ: เติมร�
 }
 const roomSwitch = (d) => `<button type="button" onclick="openRoomDrawer()" class="text-sm bg-white text-indigo-800 hover:bg-indigo-50 font-semibold px-3 py-2 rounded-xl max-w-[13rem] truncate"><i class="fa-solid fa-door-open mr-1"></i>${d && d.room ? esc(d.room.name) : "เลือกห้องเรียน"} <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i></button>`;
 const ST_TABS = [["home", "ภาพรวมวิชา", "fa-chart-pie"], ["work", "งานและคะแนน", "fa-book-open"], ["att", "เช็คชื่อ", "fa-calendar-check"], ["rule", "เกณฑ์รายวิชา", "fa-scale-balanced"], ["teacher", "ประวัติครูผู้สอน", "fa-chalkboard-user"]];
-const ST_ACCT = ["me", "join", "pw"]; // หน้าบัญชี: ไม่ต้องรอข้อมูลวิชา
-const ST_ACCT_TITLES = { me: "ข้อมูลของฉัน", join: "เข้าร่วมห้องเรียน", pw: "เปลี่ยนรหัสผ่าน" };
+const ST_ACCT = ["rooms", "me", "join", "pw"]; // หน้าบัญชี: ไม่ต้องรอข้อมูลวิชา
+const ST_ACCT_TITLES = { rooms: "หน้าหลัก", me: "ข้อมูลของฉัน", join: "เข้าร่วมห้องเรียน", pw: "เปลี่ยนรหัสผ่าน" };
 let stData = null, stTimer = null, lastStudentHit = 0;
 
 // จำวิชาที่นักเรียนเลือกล่าสุด (ต่อบัญชี) เพื่อเข้าให้อัตโนมัติรอบหน้า
@@ -911,7 +910,7 @@ function renderStudent() {
   $("stTabs").innerHTML = "";
   renderChrome();
   $("stBody").innerHTML = d && d.needClass ? classPanel()
-    : stTab === "me" ? meView() : stTab === "join" ? joinView() : stTab === "pw" ? pwView()
+    : stTab === "rooms" ? pickerPanel() : stTab === "me" ? meView() : stTab === "join" ? joinView() : stTab === "pw" ? pwView()
     : d ? (d.noRoom ? joinPanel() : (ST_VIEWS[stTab] || ST_VIEWS.home)(d))
     : stLoading ? empty('<i class="fa-solid fa-spinner fa-spin mr-2"></i>กำลังโหลดข้อมูลวิชานี้...')
     : `<div class="bg-white rounded-2xl shadow-md border p-8 max-w-md mx-auto text-center space-y-3"><div class="text-4xl text-indigo-700"><i class="fa-solid fa-book-open"></i></div><h3 class="text-xl font-bold text-slate-800">เลือกวิชาจากเมนู</h3><p class="text-sm text-slate-500">แตะชื่อวิชาในเมนูเพื่อดูคะแนนและงาน</p><button type="button" onclick="openSide()" class="${btnP} lg:hidden"><i class="fa-solid fa-bars mr-1"></i>เปิดเมนู</button></div>`;
@@ -1049,6 +1048,16 @@ const ST_VIEWS = {
     </div>`;
   },
 };
+
+/* ----- หน้าหลัก: เลือกห้องเรียน (แสดงทางขวา) ----- */
+function pickerPanel() {
+  const curId = stData && stData.room ? stData.room.id : "";
+  if (!stRooms.length) return `<div class="bg-white rounded-2xl shadow-md border p-8 max-w-md mx-auto text-center space-y-3"><div class="text-4xl text-indigo-700"><i class="fa-solid fa-door-open"></i></div><h3 class="text-xl font-bold text-slate-800">ยังไม่มีห้องเรียน</h3><p class="text-sm text-slate-500">กรอกรหัสห้องที่ได้จากครูเพื่อเข้าห้องเรียน</p><button type="button" onclick="setStTab('join')" class="${btnP}"><i class="fa-solid fa-plus mr-1"></i>เข้าร่วมห้องเรียน</button></div>`;
+  return `<div class="max-w-3xl mx-auto space-y-4">
+    <div><h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-door-open text-indigo-600 mr-2"></i>เลือกห้องเรียน</h3><p class="text-sm text-slate-500">แตะที่ห้องเรียนที่ต้องการ แล้วเมนูของห้องนั้นจะขึ้นทางซ้าย คะแนนของแต่ละห้องแยกกัน</p></div>
+    <div class="grid sm:grid-cols-2 gap-3">${stRoomCards(curId)}</div>
+    <button type="button" onclick="setStTab('join')" class="w-full border-2 border-dashed border-indigo-300 text-indigo-700 rounded-2xl py-3 text-sm font-semibold hover:bg-indigo-50"><i class="fa-solid fa-plus mr-1"></i>เข้าร่วมห้องเรียนใหม่ด้วยรหัสห้อง</button></div>`;
+}
 
 /* ----- หน้าบัญชีของนักเรียน (ไม่ผูกกับวิชา) ----- */
 function meView() {
@@ -2094,7 +2103,7 @@ function startStudentTimer() { // รีเฟรชข้อมูลอัต�
   if (!sv || Date.now() - (sv.last || 0) > IDLE_MS) { clearSess(); return; }
   lastActive = Date.now();
   if (sv.r === "s" && sv.u && sv.u.token) {
-    currentUser = sv.u; stData = null; stRoom = sv.room || ""; stTab = (!sv.tab || sv.tab === "rooms" || sv.tab === "home" && !sv.room) ? "me" : sv.tab; stLoading = true; stJoinMode = false;
+    currentUser = sv.u; stData = null; stRoom = sv.room || ""; stTab = (!sv.tab || sv.tab === "home" && !sv.room) ? "me" : sv.tab; stLoading = true; stJoinMode = false;
     resetNav("studentDashboard", stTab);
     startStudentTimer();
     fetchStudent().catch((e) => toast(e.message)).finally(() => { stLoading = false; if (currentUser) renderStudent(); });
