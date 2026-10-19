@@ -615,7 +615,7 @@ function handleStudentLogin() {
 
 /* ---------- ฝั่งนักเรียน (ดูอย่างเดียว) ---------- */
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const fmt = (n) => (n === null || n === undefined || isNaN(n) ? "-" : String(Math.round(Number(n) * 10) / 10));
+const fmt = (n) => (n === null || n === undefined || isNaN(n) ? "-" : String(Math.round(Number(n) * 100) / 100)); // ทศนิยมไม่เกิน 2 ตำแหน่ง (คะแนนที่ย่อสัดส่วนแล้วมักเป็นทศนิยม)
 const card = (label, value, icon, sub) => `<div class="bg-white border border-rose-100 border-t-4 border-t-indigo-500 rounded-xl p-3 text-center shadow-sm"><div class="text-xs text-slate-500"><i class="fa-solid ${icon} mr-1 text-indigo-600"></i>${label}</div><div class="text-xl font-bold text-slate-800 mt-1">${value}</div>${sub ? `<div class="text-xs text-slate-400">${sub}</div>` : ""}</div>`;
 const box = (title, icon, inner) => `<div class="bg-white rounded-2xl shadow-md border border-slate-200 p-4"><h3 class="font-bold text-slate-700 mb-3"><i class="fa-solid ${icon} text-indigo-600 mr-2"></i>${title}</h3>${inner}</div>`;
 const empty = (m) => `<div class="p-8 text-center text-slate-400">${m}</div>`;
@@ -844,7 +844,7 @@ const ST_VIEWS = {
       ${sCard("อัตราการเข้าเรียน", s.attPct == null ? "-" : fmt(s.attPct) + "%", `มา ${c["มา"]} · สาย ${c["สาย"]} · ลา ${c["ลา"]} · ขาด ${c["ขาด"]}`)}
       ${sCard("ส่งงานแล้ว", `${sent} / ${A.length}`, wait ? "รอตรวจ " + wait + " รายการ" : "")}
       ${sCard("งานค้างส่ง", pend.length, pend.length ? "รายการ" : "ไม่มีรายการค้าง")}
-      ${s.attFull ? sCard("คะแนนจิตพิสัย", s.attN ? fmt(s.attGot) + " / " + fmt(s.attFull) : "- / " + fmt(s.attFull), s.attN ? "จากการเช็คชื่อ " + s.attN + " ครั้ง" : "ยังไม่มีการเช็คชื่อ") : ""}
+      ${s.attFull ? sCard("คะแนนจิตพิสัย", s.attN ? fmt(s.attGot) + " / " + fmt(s.attFull) : "- / " + fmt(s.attFull), s.attN ? "เช็คชื่อ " + s.attN + " ครั้ง" + (s.attDed ? " · ถูกหัก " + fmt(s.attDed) : "") : "ยังไม่มีการเช็คชื่อ") : ""}
      </div>
      ${sBox("รายการที่ต้องดำเนินการ", "fa-list-check", todo.length ? `<ul>${todo.join("")}</ul>` : '<p class="text-slate-500 text-sm py-1">ไม่มีรายการค้างดำเนินการ</p>')}
      ${news.length ? sBox("ประกาศจากครูผู้สอน", "fa-bullhorn", `<div class="space-y-2">${news.slice(0, 3).map(newsItem).join("")}</div>${news.length > 3 ? `<details class="mt-3"><summary class="text-sm text-indigo-700 cursor-pointer">ดูประกาศก่อนหน้า (${news.length - 3})</summary><div class="space-y-2 mt-2">${news.slice(3).map(newsItem).join("")}</div></details>` : ""}`) : ""}
@@ -855,14 +855,17 @@ const ST_VIEWS = {
   /* ---------- งานและคะแนน ---------- */
   work(d) {
     const s = d.summary || {}, cats = Object.keys(s.byCat || {});
-    if (!d.assignments.length) return sBox("งานและคะแนน", "fa-book-open", '<p class="text-center text-slate-500 py-8">ครูผู้สอนยังไม่ได้บันทึกงานในรายวิชานี้</p>');
+    const exams = d.exams || [];
+    if (!d.assignments.length && !exams.length) return sBox("งานและคะแนน", "fa-book-open", '<p class="text-center text-slate-500 py-8">ครูผู้สอนยังไม่ได้บันทึกงานในรายวิชานี้</p>');
+    const kk = critOf(d.teacher);
+    const scaled = (a) => { const f = catFactor(d.assignments, kk.w, a.cat); return f === 1 ? "" : `<div class="text-[11px] text-slate-500 mt-0.5">${a.score == null ? "เต็ม " + fmt(a.max * f) : "นับเป็น " + fmt(a.score * f) + " / " + fmt(a.max * f)} คะแนนในรายวิชา</div>`; };
     const cur = STF.find((f) => f[0] === stFilter) || STF[0];
     const list = d.assignments.filter(cur[2]);
     const chips = STF.map(([id, label, fn]) => { const n = d.assignments.filter(fn).length; return `<button type="button" onclick="setStFilter('${id}')" class="shrink-0 whitespace-nowrap px-3.5 py-2 rounded-full text-sm border transition ${id === cur[0] ? "bg-indigo-700 text-white border-indigo-700" : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"}">${label} <span class="${id === cur[0] ? "text-indigo-100" : "text-slate-400"}">${n}</span></button>`; }).join("");
     const groups = {}; list.forEach((a) => { (groups[a.unit || "งานทั่วไป"] = groups[a.unit || "งานทั่วไป"] || []).push(a); });
     const keys = Object.keys(groups), one = keys.length === 1 && keys[0] === "งานทั่วไป";
     const item = (a) => `<div class="border border-slate-200 rounded-lg p-4 bg-white"><div class="flex justify-between gap-3 items-start"><div class="min-w-0"><div class="font-semibold text-slate-900">${esc(a.name)}</div><div class="text-xs text-slate-500 mt-0.5">${esc(a.cat)}${a.due ? " · กำหนดส่ง " + esc(a.due) : ""}</div></div>
-      <div class="text-right shrink-0">${badge(a.status)}<div class="text-lg font-bold mt-1 text-slate-900">${a.score == null ? '<span class="text-slate-400 font-normal text-sm">รอคะแนน</span>' : fmt(a.score) + '<span class="text-slate-500 text-sm font-normal"> / ' + fmt(a.max) + "</span>"}</div></div></div>
+      <div class="text-right shrink-0">${badge(a.status)}<div class="text-lg font-bold mt-1 text-slate-900">${a.score == null ? '<span class="text-slate-400 font-normal text-sm">รอคะแนน</span>' : fmt(a.score) + '<span class="text-slate-500 text-sm font-normal"> / ' + fmt(a.max) + "</span>"}</div>${scaled(a)}</div></div>
       ${a.detail ? `<div class="mt-3 rounded-md bg-slate-50 border-l-4 border-indigo-700 p-3"><div class="text-xs font-bold text-indigo-800 mb-1">รายละเอียดงาน</div><div class="text-sm text-slate-800 leading-relaxed whitespace-pre-line break-words">${esc(a.detail)}</div></div>` : ""}
       ${filesHtml(a.files)}
       ${a.feedback || a.history.length ? `<details class="mt-3 text-sm"><summary class="cursor-pointer text-indigo-700 text-xs font-medium">ข้อเสนอแนะและประวัติการบันทึก</summary>
@@ -872,7 +875,8 @@ const ST_VIEWS = {
     return `<div class="space-y-4">
       <div class="grid grid-cols-3 gap-3">${sCard("คะแนนที่ได้", fmt(s.total))}${sCard("คะแนนเต็ม (ที่ตรวจแล้ว)", fmt(s.max))}${sCard("ผลการเรียน", s.final ? esc(s.grade) : "รอประมวลผล", s.pct == null ? "" : "ร้อยละ " + fmt(s.pct))}</div>
       ${sBox("คะแนนแยกตามหมวด", "fa-layer-group", table(th("หมวด", "ได้ / เต็ม (ที่ตรวจแล้ว)", "สัดส่วน", '<span class="block text-right">เต็มทั้งหมด</span>'), catRows, 4) + `<p class="text-xs text-slate-500 mt-3">ดูเกณฑ์การตัดสินผลการเรียนได้ที่เมนู <button type="button" onclick="setStTab('rule')" class="text-indigo-700 underline">เกณฑ์รายวิชา</button></p>`)}
-      ${sBox("รายการงาน", "fa-book-open", `<div class="flex gap-2 mb-3 overflow-x-auto pb-1 st-scroll">${chips}</div><p class="text-xs text-slate-500 mb-3">งานสั่งและส่งนอกระบบ หน้านี้แสดงสถานะ คะแนน และข้อเสนอแนะที่ครูผู้สอนบันทึกให้</p>
+      ${exams.length ? sBox("การสอบ", "fa-file-signature", `<div class="grid sm:grid-cols-2 gap-2">${exams.map((e) => `<div class="border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3"><div class="font-semibold text-slate-800 min-w-0 break-words">${esc(e.name)}</div><div class="text-right shrink-0">${e.score == null ? '<span class="text-slate-400 text-sm">รอคะแนน</span>' : '<b class="text-lg text-slate-900">' + fmt(e.score) + '</b><span class="text-slate-500 text-sm"> / ' + fmt(e.max) + "</span>"}</div></div>`).join("")}</div><p class="text-xs text-slate-500 mt-2">คะแนนสอบครูผู้สอนเป็นผู้บันทึก นับเข้าคะแนนรวมของรายวิชาตามคะแนนเต็มของแต่ละรายการ</p>`) : ""}
+      ${!d.assignments.length ? "" : sBox("รายการงาน", "fa-book-open", `<div class="flex gap-2 mb-3 overflow-x-auto pb-1 st-scroll">${chips}</div><p class="text-xs text-slate-500 mb-3">งานสั่งและส่งนอกระบบ หน้านี้แสดงสถานะ คะแนน และข้อเสนอแนะที่ครูผู้สอนบันทึกให้</p>
         ${list.length ? keys.map((u) => `<div class="space-y-2 mb-3">${one ? "" : `<h4 class="font-semibold text-slate-700 text-sm mt-2"><i class="fa-solid fa-folder-open text-indigo-700 mr-2"></i>${esc(u)}</h4>`}${groups[u].map(item).join("")}</div>`).join("") : '<p class="text-center text-slate-500 py-6">ไม่มีรายการในหมวดนี้</p>'}`)}
     </div>`;
   },
@@ -883,7 +887,8 @@ const ST_VIEWS = {
     const rows = d.attList.map((a) => `<tr><td class="px-3 py-2 whitespace-nowrap">${esc(a.date)}</td><td class="px-3 py-2">${esc(a.period)}</td><td class="px-3 py-2">${badge(a.st, ATT_CLS)}</td><td class="px-3 py-2 text-slate-500">${esc(a.note || "-")}</td></tr>`).join("");
     return `<div class="space-y-4">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">${sCard("อัตราการเข้าเรียน", s.attPct == null ? "-" : fmt(s.attPct) + "%", s.attN ? "เช็คชื่อทั้งหมด " + s.attN + " ครั้ง" : "ยังไม่มีการเช็คชื่อ")}${sCard("มาเรียน", c["มา"], "ครั้ง")}${sCard("มาสาย / ลา", c["สาย"] + " / " + c["ลา"], "ครั้ง")}${sCard("ขาดเรียน", c["ขาด"], "ครั้ง")}</div>
-      ${s.attFull ? sBox("คะแนนจิตพิสัย (จากการเช็คชื่อ)", "fa-hand-holding-heart", `<div class="flex items-baseline gap-2"><span class="text-3xl font-bold text-slate-900">${s.attN ? fmt(s.attGot) : "-"}</span><span class="text-slate-500">/ ${fmt(s.attFull)} คะแนน</span></div><div class="mt-2">${sBar(s.attN ? s.attGot / s.attFull * 100 : 0, "bg-emerald-600")}</div><p class="text-xs text-slate-500 mt-2">${s.attN ? "คำนวณจากการเช็คชื่อ " + s.attN + " ครั้ง" : "ยังไม่มีการเช็คชื่อ"} · ดูเกณฑ์คะแนนเช็คชื่อได้ที่เมนู <button type="button" onclick="setStTab('rule')" class="text-indigo-700 underline">เกณฑ์รายวิชา</button></p>`) : ""}
+      ${s.attFull ? sBox("คะแนนจิตพิสัย (จากการเช็คชื่อ)", "fa-hand-holding-heart", `<div class="flex items-baseline gap-2"><span class="text-3xl font-bold text-slate-900">${s.attN ? fmt(s.attGot) : "-"}</span><span class="text-slate-500">/ ${fmt(s.attFull)} คะแนน</span></div><div class="mt-2">${sBar(s.attN ? s.attGot / s.attFull * 100 : 0, "bg-emerald-600")}</div><p class="text-sm text-slate-700 mt-2">${s.attN ? "เช็คชื่อ " + fmt(s.attBase) + " − หักพฤติกรรม " + fmt(s.attDed) + " = <b>" + fmt(s.attGot) + "</b> คะแนน" : "ยังไม่มีการเช็คชื่อ"}</p><p class="text-xs text-slate-500 mt-1">${s.attN ? "คำนวณจากการเช็คชื่อ " + s.attN + " ครั้ง" : ""} ดูเกณฑ์คะแนนเช็คชื่อได้ที่เมนู <button type="button" onclick="setStTab('rule')" class="text-indigo-700 underline">เกณฑ์รายวิชา</button></p>`) : ""}
+      ${(d.deductions || []).length ? sBox("รายการหักคะแนนจิตพิสัย (พฤติกรรม)", "fa-user-minus", table(th("วันที่", "เหตุผล", "หักคะแนน"), d.deductions.map((x) => `<tr>${td(esc(x.date), "whitespace-nowrap")}${td(esc(x.reason))}${td('<span class="text-red-600 font-semibold">-' + fmt(x.pts) + "</span>")}</tr>`).join(""), 3)) : ""}
       ${sBox("ประวัติการเข้าเรียน", "fa-clock-rotate-left", table(th("วันที่", "คาบ", "สถานะ", "หมายเหตุ"), rows, 4))}</div>`;
   },
 
@@ -892,12 +897,7 @@ const ST_VIEWS = {
     const t = d.teacher || {}, cv = courseOf(t), k = critOf(t), s = d.summary || {};
     const courseName = cv.name || t.subject || ""; // ไม่ใช้ชื่อห้อง (เช่น AL1) แทนชื่อวิชา
     const info = kv("ชื่อรายวิชา", courseName) + kv("ห้องเรียนในระบบ", d.room && d.room.name) + kv("รหัสวิชา", cv.code) + kv("หน่วยกิต", cv.credits) + kv("จำนวนชั่วโมงเรียน", cv.hours) + kv("ครูผู้สอน", t.name || t.nick) + kv("คำอธิบายรายวิชา", cv.desc) + kv("จุดประสงค์ / ผลการเรียนรู้", cv.objectives);
-    // สัดส่วนคะแนน: รวมงานตามหมวด + คะแนนจิตพิสัย (เช็คชื่อ)
-    const byCat = {}; d.assignments.forEach((a) => { const x = (byCat[a.cat] = byCat[a.cat] || { n: 0, max: 0 }); x.n++; x.max += a.max; });
-    const parts = Object.keys(byCat).map((n) => ({ name: n, n: byCat[n].n, max: byCat[n].max }));
-    if (k.m > 0) parts.push({ name: "จิตพิสัย (เช็คชื่อ)", n: null, max: k.m });
-    const total = parts.reduce((x, p) => x + p.max, 0);
-    const shareRows = parts.map((p) => `<tr>${td(esc(p.name))}${td(p.n == null ? "-" : p.n + " รายการ")}${td(fmt(p.max) + " คะแนน")}${td(`<div class="flex items-center gap-2"><div class="w-20 sm:w-32">${sBar(total ? p.max / total * 100 : 0)}</div><span class="text-xs text-slate-500">${total ? fmt(p.max / total * 100) : 0}%</span></div>`)}</tr>`).join("");
+    const sh = courseShares(d.assignments, d.exams || [], k), total = sh.total;
     const gRows = GR.map((g, i) => {
       const range = i === 0 ? "ร้อยละ " + fmt(k.g[0]) + " ขึ้นไป" : "ร้อยละ " + fmt(k.g[i]) + " – ต่ำกว่า " + fmt(k.g[i - 1]);
       return `<tr class="${s.final && s.grade === g ? "bg-amber-50 font-semibold" : ""}">${td(g, "font-bold")}${td(GRADE_TEXT[g])}${td(range)}</tr>`;
@@ -905,10 +905,10 @@ const ST_VIEWS = {
     const attRows = ATT.map((x, i) => `<tr>${td(badge(x, ATT_CLS))}${td(fmt(k.a[i]) + " คะแนน / ครั้ง")}</tr>`).join("");
     return `<div class="space-y-4">
       ${sBox("ข้อมูลรายวิชา", "fa-book", info ? `<dl>${info}</dl>` : '<p class="text-sm text-slate-500 py-2">ครูผู้สอนยังไม่ได้กรอกข้อมูลรายวิชา</p>')}
-      ${sBox("สัดส่วนคะแนนของรายวิชา", "fa-chart-pie", parts.length ? table(th("หมวดคะแนน", "จำนวนงาน", "คะแนนเต็ม", "สัดส่วน"), shareRows + `<tr class="bg-slate-50 font-semibold">${td("รวม")}${td("")}${td(fmt(total) + " คะแนน")}${td("")}</tr>`, 4) + (Math.abs(total - FULL_SCORE_UI) > 0.001 ? `<p class="text-xs text-slate-500 mt-3">หมายเหตุ: ขณะนี้คะแนนเต็มรวมที่ครูกำหนดไว้เท่ากับ ${fmt(total)} คะแนน ครูผู้สอนอาจเพิ่มงานในภายหลัง ผลการเรียนจะประกาศเมื่อคะแนนเต็มรวมครบ ${FULL_SCORE_UI} คะแนนและตรวจครบทุกงาน</p>` : "") : '<p class="text-sm text-slate-500">ยังไม่มีข้อมูลงานในรายวิชานี้</p>')}
+      ${sBox("สัดส่วนคะแนนของรายวิชา", "fa-chart-pie", sh.rows.length ? sharesTable(sh) + `<p class="text-xs text-slate-500 mt-3">${Object.keys(k.w).length ? "หมวดที่ครูตั้งสัดส่วนไว้ คะแนนของงานในหมวดจะถูกย่อ/ขยายให้รวมเท่ากับคะแนนของหมวด (เช่น ใบงานหลายใบรวมเป็น 10 คะแนน) · " : ""}${Math.abs(total - FULL_SCORE_UI) > 0.001 ? "ขณะนี้คะแนนเต็มรวมที่ครูกำหนดไว้เท่ากับ " + fmt(total) + " คะแนน ครูผู้สอนอาจเพิ่มงานหรือรายการสอบในภายหลัง ผลการเรียนจะประกาศเมื่อรวมได้ " + FULL_SCORE_UI + " คะแนนและตรวจครบทุกงาน" : "รวมครบ " + FULL_SCORE_UI + " คะแนน"}</p>` : '<p class="text-sm text-slate-500">ยังไม่มีข้อมูลงานในรายวิชานี้</p>')}
       ${sBox("เกณฑ์การตัดสินผลการเรียน", "fa-scale-balanced", table(th("ระดับผลการเรียน", "ความหมาย", "ช่วงคะแนน"), gRows, 3) + `<p class="text-xs text-slate-500 mt-3">คิดจากร้อยละของคะแนนรวมที่ได้ เทียบกับคะแนนเต็มรวม เมื่อครบ ${FULL_SCORE_UI} คะแนนและตรวจครบทุกงานแล้ว${s.final ? "" : " (ขณะนี้ผลการเรียนของคุณอยู่ระหว่างประมวลผล)"}</p>`)}
-      ${sBox("เกณฑ์คะแนนจิตพิสัย (เช็คชื่อ)", "fa-calendar-check", k.m > 0
-        ? table(th("สถานะ", "คะแนนที่ได้"), attRows, 2) + `<p class="text-xs text-slate-500 mt-3">คะแนนจิตพิสัย = (ผลรวมคะแนนเช็คชื่อ ÷ จำนวนครั้งที่เช็คชื่อ) × ${fmt(k.m)} คะแนน</p>`
+      ${sBox("เกณฑ์คะแนนจิตพิสัย (เช็คชื่อ + พฤติกรรม)", "fa-calendar-check", k.m > 0
+        ? table(th("สถานะ", "คะแนนที่ได้"), attRows, 2) + `<p class="text-xs text-slate-500 mt-3">คะแนนจิตพิสัย = (ผลรวมคะแนนเช็คชื่อ ÷ จำนวนครั้งที่เช็คชื่อ) × ${fmt(k.m)} คะแนน แล้วหักคะแนนพฤติกรรมที่ครูบันทึก (เช่น แต่งกายไม่เรียบร้อย) ผลลัพธ์ไม่ต่ำกว่า 0</p>`
         : '<p class="text-sm text-slate-500">รายวิชานี้ไม่นับคะแนนเช็คชื่อรวมในคะแนน</p>')}
       ${cv.rules ? sBox("กติกาและเงื่อนไขของรายวิชา", "fa-gavel", `<div class="text-slate-800 whitespace-pre-line break-words leading-relaxed">${esc(cv.rules)}</div>`) : ""}
     </div>`;
@@ -1005,23 +1005,54 @@ const CLASS_OPTIONS = LEVELS.flatMap((lv) => ROOMS.flatMap((r) => SUBS.map((s) =
 const VALID_CLASS = /^((ปวช|ปวส)\/[A-D]\/L[1-8]|[A-E]\/L[1-4])$/; // รูปแบบใหม่ + รูปแบบเก่า (ข้อมูลเดิม)
 const ATT = ["มา", "สาย", "ลา", "ขาด"];
 const STATUSES = ["ยังไม่ส่ง", "ส่งแล้ว", "ส่งช้า", "ตรวจแล้ว", "ต้องแก้ไข"];
-const CATS = ["ใบงาน", "แบบทดสอบ", "แบบฝึกหัด", "ปฏิบัติ/ชิ้นงาน", "สอบกลางภาค", "สอบปลายภาค", "จิตพิสัย"];
+const CATS = ["ใบงาน", "แบบทดสอบ", "แบบฝึกหัด", "ปฏิบัติ/ชิ้นงาน", "สอบกลางภาค", "สอบปลายภาค", "จิตพิสัย"]; // ใช้อ่านข้อมูลเก่า
+const ASSIGN_CATS = ["ใบงาน", "แบบทดสอบ", "แบบฝึกหัด", "ปฏิบัติ/ชิ้นงาน"]; // หมวดที่เลือกได้ตอนมอบหมายงาน (สอบ/จิตพิสัยมีเมนูของตัวเอง)
 const STU_STATUS = ["ปกติ", "พักการเรียน", "ย้ายออก"];
 const PERIODS = ["ทั้งวัน"].concat([1, 2, 3, 4, 5, 6, 7, 8].map((n) => "คาบ " + n));
 const GLOBAL_TABS = ["rooms", "profile", "resets", "admins"]; // หน้านอกห้อง: รายการห้อง / โปรไฟล์ครู / จัดการแอดมิน
 const TABS = [["home", "หน้าหลัก", "fa-house"], ["students", "รายชื่อนักเรียน", "fa-users"], ["submit", "เช็คส่งงาน", "fa-clipboard-check"],
-  ["assign", "รายละเอียดงาน", "fa-book"], ["criteria", "เกณฑ์คะแนน / ข้อมูลวิชา", "fa-scale-balanced"], ["scores", "คะแนนรายบุคคล", "fa-pen-to-square"], ["attend", "คะแนนเช็คชื่อ", "fa-calendar-check"],
+  ["assign", "รายละเอียดงาน", "fa-book"], ["criteria", "เกณฑ์คะแนน / ข้อมูลวิชา", "fa-scale-balanced"], ["scores", "คะแนนรายบุคคล", "fa-pen-to-square"], ["exam", "สอบ", "fa-file-signature"], ["attend", "คะแนนเช็คชื่อ", "fa-calendar-check"],
   ["rank", "จัดอันดับ", "fa-ranking-star"], ["summary", "สรุปผลการเรียน", "fa-file-lines"], ["news", "ประกาศ", "fa-bullhorn"], ["settings", "ตั้งค่าห้อง / รหัสเชิญ", "fa-gear"]];
 const DEF_G = [80, 75, 70, 65, 60, 55, 50], DEF_A = [1, 0.5, 0.5, 0], GR = ["4", "3.5", "3", "2.5", "2", "1.5", "1"];
 function critOf(c) {
   c = c || {};
   const g = String(c.grades || "").split(",").map(Number), a = String(c.attPts || "").split(",").map(Number);
-  return { g: g.length === 7 && g.every((x) => !isNaN(x)) ? g : DEF_G, a: a.length === 4 && a.every((x) => !isNaN(x)) ? a : DEF_A, m: (c.attMax === undefined || c.attMax === "") ? 10 : Math.max(0, Number(c.attMax) || 0) };
+  return { g: g.length === 7 && g.every((x) => !isNaN(x)) ? g : DEF_G, a: a.length === 4 && a.every((x) => !isNaN(x)) ? a : DEF_A, m: (c.attMax === undefined || c.attMax === "") ? 10 : Math.max(0, Number(c.attMax) || 0), w: weightsOf(c) };
 }
+// สัดส่วนรายหมวดที่ครูตั้ง: { "ใบงาน": 10 } = หมวดนั้นรวมกันนับเป็น 10 คะแนนในรายวิชา (ไม่ตั้ง = นับตามคะแนนที่ให้จริง)
+function weightsOf(c) {
+  try {
+    const o = JSON.parse((c && c.weights) || "{}"), w = {};
+    Object.keys(o || {}).forEach((k) => { const v = Number(o[k]); if (o[k] !== "" && o[k] !== null && isFinite(v) && v >= 0) w[k] = v; });
+    return w;
+  } catch (_) { return {}; }
+}
+// ตัวคูณย่อ/ขยายคะแนนงานในหมวดหนึ่ง: คะแนนในรายวิชา = คะแนนที่ได้ × ตัวคูณ (ตรงกับที่ระบบหลังบ้านคำนวณ)
+const catFactor = (list, w, cat) => { if (w[cat] === undefined) return 1; const sum = list.filter((a) => a.cat === cat).reduce((x, a) => x + a.max, 0); return sum > 0 ? w[cat] / sum : 1; };
+// ตารางสัดส่วนคะแนนทั้งรายวิชา: งานแต่ละหมวด + รายการสอบ + จิตพิสัย (ใช้ทั้งหน้าครูและหน้านักเรียน)
+function courseShares(assignments, exams, k) {
+  const by = {};
+  assignments.forEach((a) => { const x = (by[a.cat] = by[a.cat] || { n: 0, raw: 0 }); x.n++; x.raw += a.max; });
+  const cats = Object.keys(by);
+  Object.keys(k.w).forEach((c) => { if (!(c in by) && k.w[c] > 0) cats.push(c); });
+  cats.sort((a, b) => (CATS.indexOf(a) < 0 ? 99 : CATS.indexOf(a)) - (CATS.indexOf(b) < 0 ? 99 : CATS.indexOf(b)));
+  const rows = cats.map((c) => { const x = by[c] || { n: 0, raw: 0 }, weighted = k.w[c] !== undefined; return { name: c, n: x.n, raw: x.raw, pts: weighted ? k.w[c] : x.raw, weighted, kind: "work" }; });
+  (exams || []).forEach((e) => rows.push({ name: e.name, n: 1, raw: e.max, pts: e.max, weighted: false, kind: "exam" }));
+  if (k.m > 0) rows.push({ name: "จิตพิสัย (เช็คชื่อ / พฤติกรรม)", n: null, raw: k.m, pts: k.m, weighted: false, kind: "att" });
+  return { rows, total: rows.reduce((x, r) => x + r.pts, 0) };
+}
+const sharesTable = (sh) => {
+  const kindTxt = (r) => (r.kind === "exam" ? "รายการสอบ" : r.kind === "att" ? "-" : r.n + " งาน");
+  const body = sh.rows.map((r) => `<tr>${td(esc(r.name))}${td(kindTxt(r))}${td(r.kind === "work" ? fmt(r.raw) + " คะแนน" : "-")}${td(`<b>${fmt(r.pts)}</b> คะแนน${r.weighted ? ' <span class="text-[11px] text-amber-700">(ย่อ/ขยายตามสัดส่วนที่ตั้ง)</span>' : r.kind === "work" && !r.n ? ' <span class="text-[11px] text-red-600">(ยังไม่มีงานในหมวดนี้)</span>' : ""}`)}</tr>`).join("");
+  return table(th("หมวดคะแนน", "จำนวน", "คะแนนที่ให้จริงรวม", "นับในรายวิชา"), body + `<tr class="bg-slate-50 font-semibold">${td("รวม")}${td("")}${td("")}${td(fmt(sh.total) + " คะแนน")}</tr>`, 4);
+};
+const totalBadge = (total) => Math.abs(total - 100) < 0.001
+  ? '<span class="px-3 py-1 rounded-full text-sm bg-emerald-100 text-emerald-800">ครบ 100 คะแนนพอดี</span>'
+  : `<span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-800">ขณะนี้รวม ${fmt(total)} คะแนน ${total < 100 ? "(ยังไม่ครบ 100)" : "(เกิน 100)"} · เกรดจะประกาศเมื่อรวมได้ 100 และตรวจครบทุกงาน</span>`;
 const gradeNote = (c) => { const k = critOf(c); return "เกณฑ์เกรด: " + GR.map((x, i) => k.g[i] + "%+ = " + x).join(", ") + ", ต่ำกว่า " + k.g[6] + "% = 0" + (k.m ? " · จิตพิสัย (เช็คชื่อ) เต็ม " + k.m + " คะแนน" : ""); };
 const pendReset = () => ((adminData && adminData.resets) || []).filter((r) => r.status === "รอครู").length;
 const RS_CLS = { "รอครู": "bg-amber-100 text-amber-700", "ออกโค้ดแล้ว": "bg-sky-100 text-sky-700", "เสร็จสิ้น": "bg-emerald-100 text-emerald-700", "ปฏิเสธ": "bg-slate-200 text-slate-600" };
-const FILTER_TABS = ["students", "submit", "scores", "attend", "rank", "summary"];
+const FILTER_TABS = ["students", "submit", "scores", "exam", "attend", "rank", "summary"];
 let curRoom = "", adminRole = "", adminUser = "", asgFiles = [], adminOpen = {};
 let adminOnline = null;
 const onlineBadge = () => adminOnline == null ? "" : `<span id="onlineBadge" title="นักเรียนที่ออนไลน์อยู่ตอนนี้ ${adminOnline} คน" class="text-[11px] text-slate-400 select-none"><span class="inline-block w-1.5 h-1.5 rounded-full ${adminOnline > 0 ? "bg-emerald-400" : "bg-slate-300"} mr-1 align-middle"></span>${adminOnline}</span>`;
@@ -1345,23 +1376,27 @@ const AVIEWS = {
   },
 
   assign() {
-    const rows = adminData.assignments.map((a) => `<tr>${td(esc(a.name))}${td(esc(a.cat))}${td(esc(a.unit || "-"))}${td(esc(a.target || "ทุกห้อง"))}${td(a.max)}${td(esc(a.due || "-"), "whitespace-nowrap")}${td(esc(a.detail || "-") + ((a.files || []).length ? ' <span class="text-xs text-indigo-600"><i class="fa-solid fa-paperclip"></i> ' + a.files.length + "</span>" : ""), "min-w-[14rem] max-w-md whitespace-pre-line break-words text-slate-800")}<td class="px-3 py-2 whitespace-nowrap"><button type="button" onclick="editAssign('${esc(a.id)}')" class="text-indigo-700 mr-3"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="deleteAssign('${esc(a.id)}')" class="text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>`).join("");
-    return `<p class="text-xs text-slate-500 mb-2">บันทึกรายการงานที่สั่งนอกระบบไว้ที่นี่ เพื่อให้นักเรียนเห็นกำหนดส่ง สถานะ และคะแนน (นักเรียนไม่ได้ส่งงานผ่านเว็บ)</p>
+    const k = critOf(adminData.config), list = adminData.assignments;
+    const rows = list.map((a) => { const f = catFactor(list, k.w, a.cat);
+      return `<tr>${td(esc(a.name) + (a.target ? `<div class="text-[11px] text-amber-700">เดิมกำหนดเฉพาะ ${esc(a.target)} · แก้แล้วบันทึกเพื่อใช้กับทั้งห้อง</div>` : ""))}${td(esc(a.cat))}${td(esc(a.unit || "-"))}${td(a.max)}${td(f !== 1 ? `${fmt(a.max * f)} <span class="text-[11px] text-amber-700">(ย่อตามสัดส่วนหมวด)</span>` : fmt(a.max), "whitespace-nowrap")}${td(esc(a.due || "-"), "whitespace-nowrap")}${td(esc(a.detail || "-") + ((a.files || []).length ? ' <span class="text-xs text-indigo-600"><i class="fa-solid fa-paperclip"></i> ' + a.files.length + "</span>" : ""), "min-w-[14rem] max-w-md whitespace-pre-line break-words text-slate-800")}<td class="px-3 py-2 whitespace-nowrap"><button type="button" onclick="editAssign('${esc(a.id)}')" class="text-indigo-700 mr-3"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="deleteAssign('${esc(a.id)}')" class="text-red-600"><i class="fa-solid fa-trash"></i></button></td></tr>`; }).join("");
+    const sh = courseShares(list, adminData.exams || [], k);
+    return `<p class="text-xs text-slate-500 mb-2">บันทึกรายการงานที่สั่งนอกระบบไว้ที่นี่ เพื่อให้นักเรียนเห็นกำหนดส่ง สถานะ และคะแนน (นักเรียนไม่ได้ส่งงานผ่านเว็บ) · งานทุกชิ้นมอบให้ทั้งห้องที่คุณสอนอยู่ · การสอบอยู่ที่เมนู "สอบ" ส่วนจิตพิสัยอยู่ที่เมนู "คะแนนเช็คชื่อ"</p>
       <div id="asgForm" class="grid md:grid-cols-4 gap-3 mb-4 p-3 bg-slate-50 rounded-xl border"><input type="hidden" id="asgId">
       <div><label class="text-xs font-semibold text-slate-600">ชื่องาน <span class="text-red-500">*</span></label><input id="asgName" class="${inC}" placeholder="เช่น ใบงานที่ 1"></div>
-      <div><label class="text-xs font-semibold text-slate-600">คะแนนเต็ม <span class="text-red-500">*</span></label><input id="asgMax" type="number" min="1" step="0.5" class="${inC}" placeholder="10"></div>
+      <div><label class="text-xs font-semibold text-slate-600">คะแนนเต็มของงานนี้ <span class="text-red-500">*</span></label><input id="asgMax" type="number" min="1" step="0.5" class="${inC}" placeholder="เช่น 100"></div>
       <div><label class="text-xs font-semibold text-slate-600">กำหนดส่ง</label><input id="asgDue" type="date" class="${inC}"></div>
-      <div><label class="text-xs font-semibold text-slate-600">หมวดคะแนน</label><select id="asgCat" class="${inC}">${opts(CATS, "")}</select></div>
-      <div><label class="text-xs font-semibold text-slate-600">หน่วยการเรียน / สัปดาห์ / บทเรียน</label><input id="asgUnit" class="${inC}" placeholder="เช่น สัปดาห์ที่ 1"></div>
-      <div><label class="text-xs font-semibold text-slate-600">มอบให้ห้อง</label><select id="asgTarget" class="${inC}">${targetOpts("")}</select></div>
+      <div><label class="text-xs font-semibold text-slate-600">หมวดคะแนน</label><select id="asgCat" class="${inC}">${opts(ASSIGN_CATS, "")}</select></div>
+      <div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">หน่วยการเรียน / สัปดาห์ / บทเรียน</label><input id="asgUnit" class="${inC}" placeholder="เช่น สัปดาห์ที่ 1"></div>
       <div class="md:col-span-2 flex items-end"><button type="button" onclick="saveAssign(this)" class="${btnP} w-full"><span>บันทึกงาน</span></button></div>
+      <p class="md:col-span-4 text-xs text-slate-500 -mt-1">คะแนนเต็มของงานจะถูกย่อให้พอดีกับ "คะแนนรวมของหมวด" ที่ตั้งไว้ในแท็บ <button type="button" onclick="setAdminTab('criteria')" class="text-indigo-700 underline">เกณฑ์คะแนน / ข้อมูลวิชา</button> เช่น ใบงาน 15 ใบ ใบละ 100 คะแนน ตั้งให้ทั้งหมวดรวมเป็น 10 คะแนน</p>
       <div class="md:col-span-4"><label class="text-xs font-semibold text-slate-600">รายละเอียดงาน</label><textarea id="asgDetail" rows="4" class="${inC}" placeholder="คำอธิบาย / วิธีส่งงานนอกระบบ"></textarea></div>
       <div class="md:col-span-4"><label class="text-xs font-semibold text-slate-600">ไฟล์ / รูปภาพ / ลิงก์แนบ (ให้นักเรียนศึกษาเพิ่มเติม)</label>
        <div id="asgFiles" class="space-y-1 my-1"></div>
        <div class="flex flex-wrap gap-2 items-center"><label class="cursor-pointer bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm"><i class="fa-solid fa-paperclip mr-1"></i>แนบไฟล์/รูป<input type="file" multiple class="hidden" onchange="attachFiles(this)"></label>
         <input id="asgLink" placeholder="หรือวางลิงก์ (YouTube, Google Drive ฯลฯ)" class="${inC} flex-1 min-w-[12rem]"><button type="button" onclick="addLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm">เพิ่มลิงก์</button></div>
        <p class="text-xs text-slate-400 mt-1">ไฟล์ละไม่เกิน 5 MB · รูปภาพจะถูกย่อให้อัตโนมัติ · ไฟล์เก็บใน Google Drive ของครู (ใครมีลิงก์เปิดดูได้) · แนบแล้วต้องกด "บันทึกงาน"</p></div></div>
-      ${table(th("ชื่องาน", "หมวด", "หน่วย/สัปดาห์", "ห้อง", "เต็ม", "กำหนดส่ง", "รายละเอียด", "จัดการ"), rows, 8)}`;
+      ${table(th("ชื่องาน", "หมวด", "หน่วย/สัปดาห์", "เต็ม (ที่ตั้ง)", "นับในรายวิชา", "กำหนดส่ง", "รายละเอียด", "จัดการ"), rows, 8)}
+      <div class="mt-4 p-3 bg-white border rounded-xl"><div class="flex flex-wrap items-center justify-between gap-2 mb-2"><h4 class="font-semibold text-slate-700 text-sm">ภาพรวมคะแนนรวมของรายวิชา</h4>${totalBadge(sh.total)}</div>${sharesTable(sh)}</div>`;
   },
 
   scores() {
@@ -1377,19 +1412,50 @@ const AVIEWS = {
       ${table(th("เลขที่", "รหัส", "ชื่อ-นามสกุล", ...as.map((a) => `${esc(a.name)}<br><span class="font-normal">${esc(a.cat)} /${a.max}</span>`), "รวม", "คงเหลือ"), rows, as.length + 5)}`;
   },
 
+  exam() {
+    const ex = adminData.exams || [], tot = ex.reduce((x, e) => x + e.max, 0);
+    const exRows = ex.map((e) => `<tr data-eid="${esc(e.id)}"><td class="px-2 py-1"><input class="ex-name ${inC}" maxlength="60" value="${esc(e.name)}"></td><td class="px-2 py-1 w-32"><input type="number" class="ex-max ${inC}" min="1" max="100" step="0.5" value="${e.max}"></td><td class="px-3 py-2 whitespace-nowrap"><button type="button" onclick="saveExamRow(this)" class="${btnP} !px-3 !py-1.5"><span>บันทึก</span></button><button type="button" onclick="deleteExam('${esc(e.id)}')" class="text-red-600 ml-3"><i class="fa-solid fa-trash"></i></button></td></tr>`).join("");
+    const rows = studs(true).map((s) => { let sum = 0; const cells = ex.map((e) => { const r = recOf(s.studentId, e.id), v = r && r.score !== null ? r.score : ""; if (v !== "") sum += Number(v);
+      return `<td class="px-2 py-1"><input type="number" step="0.5" min="0" max="${e.max}" value="${v}" data-orig="${v}" data-sid="${esc(s.studentId)}" data-aid="${esc(e.id)}" class="exam-in w-20 px-2 py-1 border rounded text-center"></td>`; }).join("");
+      return `<tr data-q="${rowQ(s)}">${td(esc(s.no))}${td(esc(s.studentId))}${td(esc(s.name), "whitespace-nowrap")}${cells}${td(fmt(sum), "font-semibold")}</tr>`; }).join("");
+    return `<div class="space-y-5">
+      <div><h3 class="font-bold text-slate-700 text-lg"><i class="fa-solid fa-file-signature text-indigo-600 mr-2"></i>รายการสอบ</h3><p class="text-xs text-slate-500">ตั้งชื่อและคะแนนเต็มของการสอบเอง (เช่น สอบกลางภาค 20 คะแนน สอบปลายภาค 20 คะแนน) แล้วกรอกคะแนนของนักเรียนแต่ละคนด้านล่าง · คะแนนสอบนับเข้าคะแนนรวมของรายวิชาตามที่ตั้งไว้โดยตรง</p></div>
+      <div class="p-3 bg-slate-50 border rounded-xl">
+        ${table(th("ชื่อรายการสอบ", "คะแนนเต็ม", "จัดการ"), exRows, 3)}
+        <div class="mt-3 grid md:grid-cols-6 gap-2 items-end"><div class="md:col-span-3"><label class="text-xs font-semibold text-slate-600">เพิ่มรายการสอบ (ชื่อ)</label><input id="exNewName" list="exNames" maxlength="60" class="${inC}" placeholder="เช่น สอบกลางภาค"><datalist id="exNames"><option value="สอบกลางภาค"><option value="สอบปลายภาค"><option value="สอบย่อย"></datalist></div>
+          <div class="md:col-span-1"><label class="text-xs font-semibold text-slate-600">คะแนนเต็ม</label><input id="exNewMax" type="number" min="1" max="100" step="0.5" class="${inC}" placeholder="20"></div>
+          <div class="md:col-span-2"><button type="button" onclick="addExam(this)" class="${btnP} w-full"><span><i class="fa-solid fa-plus mr-1"></i> เพิ่มรายการสอบ</span></button></div></div>
+        <p class="text-xs text-slate-500 mt-2">${ex.length ? "รวมคะแนนสอบที่ตั้งไว้ " + fmt(tot) + " คะแนน" : "ยังไม่มีรายการสอบ"} · เพิ่มได้ไม่เกิน 10 รายการ · ลดคะแนนเต็มต่ำกว่าคะแนนที่ให้ไปแล้วไม่ได้</p></div>
+      <div><h3 class="font-bold text-slate-700 text-lg"><i class="fa-solid fa-pen-to-square text-indigo-600 mr-2"></i>กรอกคะแนนสอบ</h3><p class="text-xs text-slate-500 mb-2">ช่องว่าง = ยังไม่มีคะแนน · ขาดสอบให้ใส่ 0 · ใส่แล้วกด "บันทึกคะแนนสอบ"</p>
+      ${ex.length ? `<div class="flex flex-wrap items-center gap-3 mb-2">${searchBox()}<button type="button" onclick="saveExamScores(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกคะแนนสอบ</span></button></div>
+      ${table(th("เลขที่", "รหัส", "ชื่อ-นามสกุล", ...ex.map((e) => `${esc(e.name)}<br><span class="font-normal">เต็ม ${fmt(e.max)}</span>`), "รวมสอบ"), rows, ex.length + 4)}` : empty('เพิ่มรายการสอบด้านบนก่อน แล้วจะกรอกคะแนนได้ที่นี่')}</div></div>`;
+  },
+
   attend() {
-    const day = {};
+    const day = {}, k = critOf(adminData.config), deds = adminData.deductions || [];
     adminData.attendance.filter((a) => a.date === adminDate && a.period === adminPeriod).forEach((a) => { day[a.sid] = a; });
-    const rows = studs(true).map((s) => { const x = day[s.studentId] || {}; return `<tr data-q="${rowQ(s)}" data-sid="${esc(s.studentId)}">${td(esc(s.no))}${td(esc(s.studentId))}${td(esc(s.name))}${td(esc(s.class || "-"))}
+    const rows = studs(true).map((s) => { const x = day[s.studentId] || {}, m = sumOf(s.studentId); return `<tr data-q="${rowQ(s)}" data-sid="${esc(s.studentId)}">${td(esc(s.no))}${td(esc(s.studentId))}${td(esc(s.name))}${td(esc(s.class || "-"))}
       <td class="px-2 py-1"><select class="att-sel ${selC}" data-orig="${esc(x.st || "")}"><option value="">-</option>${opts(ATT, x.st)}</select></td>
       <td class="px-2 py-1"><input class="att-note ${inC} min-w-[10rem]" maxlength="200" value="${esc(x.note || "")}" data-orig="${esc(x.note || "")}" placeholder="หมายเหตุ"></td>
-      ${td(sumOf(s.studentId).attPct == null ? "-" : fmt(sumOf(s.studentId).attPct) + "%")}</tr>`; }).join("");
+      ${td(m.attPct == null ? "-" : fmt(m.attPct) + "%")}${td(m.attFull ? (m.attN ? fmt(m.attGot) : "-") + " / " + fmt(m.attFull) + (m.attDed ? ` <span class="text-[11px] text-red-600">(หัก ${fmt(m.attDed)})</span>` : "") : "-", "whitespace-nowrap")}</tr>`; }).join("");
+    const stuOpts = studs(true).map((s) => `<option value="${esc(s.studentId)}">${esc((s.no ? s.no + ". " : "") + s.name + " (" + s.studentId + ")")}</option>`).join("");
+    const reasons = [...new Set(["แต่งกายไม่เรียบร้อย", "ไม่นำอุปกรณ์การเรียนมา", "รบกวนการเรียน", "ใช้โทรศัพท์ในคาบเรียน"].concat(deds.map((d) => d.reason)))];
+    const dedRows = deds.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 60).map((d) => `<tr data-q="${esc((d.sid + " " + nameOf(d.sid)).toLowerCase())}">${td(esc(d.date), "whitespace-nowrap")}${td(esc(nameOf(d.sid)))}${td(esc(d.reason))}${td('<span class="text-red-600 font-semibold">-' + fmt(d.pts) + "</span>")}<td class="px-3 py-2"><button type="button" onclick="deleteDeduction('${esc(d.id)}')" class="text-red-600" title="ลบรายการ"><i class="fa-solid fa-trash"></i></button></td></tr>`).join("");
     return `<div class="flex flex-wrap items-center gap-3 mb-1"><input type="date" value="${adminDate}" onchange="adminDate=this.value;renderAdmin()" class="${selC}">
       <select onchange="adminPeriod=this.value;renderAdmin()" class="${selC}">${opts(PERIODS, adminPeriod)}</select>${searchBox()}
       <button type="button" onclick="markAll()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm">มาทั้งหมด</button>
       <button type="button" onclick="saveAttend(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกเช็คชื่อ</span></button></div>
-      <p class="text-xs text-slate-500 mb-3">เลือกวันที่/คาบย้อนหลังเพื่อแก้ไขได้ · คะแนนต่อครั้งตามที่ตั้งไว้ (ปรับค่าได้ที่แท็บ สรุปผลการเรียน) · เลือก "-" เพื่อลบรายการ</p>
-      ${table(th("เลขที่", "รหัส", "ชื่อ-นามสกุล", "ห้อง", "สถานะ", "หมายเหตุ", "เช็คชื่อรวม"), rows, 7)}`;
+      <p class="text-xs text-slate-500 mb-3">เลือกวันที่/คาบย้อนหลังเพื่อแก้ไขได้ · คะแนนต่อครั้งและคะแนนเต็มจิตพิสัยตั้งที่แท็บ เกณฑ์คะแนน / ข้อมูลวิชา · เลือก "-" เพื่อลบรายการ</p>
+      ${table(th("เลขที่", "รหัส", "ชื่อ-นามสกุล", "ห้อง", "สถานะ", "หมายเหตุ", "เช็คชื่อรวม", "จิตพิสัย"), rows, 8)}
+      <div class="mt-6 p-4 bg-slate-50 border rounded-xl"><h3 class="font-bold text-slate-700"><i class="fa-solid fa-user-minus text-red-600 mr-2"></i>หักคะแนนจิตพิสัย (พฤติกรรม)</h3>
+        <p class="text-xs text-slate-500 mb-3">จิตพิสัย = คะแนนจากเช็คชื่อ − คะแนนที่หักด้านพฤติกรรม (ไม่ต่ำกว่า 0) · เต็ม ${k.m ? fmt(k.m) + " คะแนน" : "0 (ตอนนี้ไม่นับจิตพิสัย ตั้งที่แท็บเกณฑ์คะแนนก่อนการหักจึงจะมีผล)"} · ระบุเหตุผลและคะแนนที่หักเอง เช่น แต่งกายไม่เรียบร้อย · นักเรียนเห็นเหตุผลและคะแนนที่ถูกหัก</p>
+        <div class="grid md:grid-cols-6 gap-2 items-end">
+         <div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">นักเรียน <span class="text-red-500">*</span></label><select id="dedSid" class="${inC}"><option value="">- เลือกนักเรียน -</option>${stuOpts}</select></div>
+         <div class="md:col-span-2"><label class="text-xs font-semibold text-slate-600">เหตุผล <span class="text-red-500">*</span></label><input id="dedReason" list="dedReasons" maxlength="100" class="${inC}" placeholder="เช่น แต่งกายไม่เรียบร้อย"><datalist id="dedReasons">${reasons.map((r) => `<option value="${esc(r)}">`).join("")}</datalist></div>
+         <div><label class="text-xs font-semibold text-slate-600">หักกี่คะแนน <span class="text-red-500">*</span></label><input id="dedPts" type="number" min="0.5" step="0.5" class="${inC}" placeholder="1"></div>
+         <div><label class="text-xs font-semibold text-slate-600">วันที่</label><input id="dedDate" type="date" value="${adminDate}" class="${inC}"></div>
+         <div class="md:col-span-6"><button type="button" onclick="addDeduction(this)" class="${btnP}"><span><i class="fa-solid fa-plus mr-1"></i> บันทึกการหักคะแนน</span></button></div></div>
+        <div class="mt-4">${table(th("วันที่", "นักเรียน", "เหตุผล", "หักคะแนน", ""), dedRows, 5)}${deds.length > 60 ? '<p class="text-xs text-slate-400 mt-1">แสดง 60 รายการล่าสุด</p>' : ""}</div></div>`;
   },
 
   rank() {
@@ -1415,10 +1481,10 @@ const AVIEWS = {
   },
 
   criteria() {
-    const k = critOf(adminData.config), cv = courseOf(adminData.config);
-    const asgSum = (cls) => adminData.assignments.filter((a) => matchT(a.target, cls)).reduce((x, a) => x + a.max, 0);
-    const clsList = [...new Set(adminData.students.filter((s) => s.active).map((s) => s.class || ""))].sort();
-    const totals = clsList.map((c) => { const t = asgSum(c) + k.m; return `<span class="px-3 py-1 rounded-full text-sm ${t === 100 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}">${esc(c || "ทั้งห้อง")}: ${fmt(t)} คะแนน</span>`; }).join("") || '<span class="text-slate-400 text-sm">ยังไม่มีนักเรียนในห้อง</span>';
+    const k = critOf(adminData.config), cv = courseOf(adminData.config), sh = courseShares(adminData.assignments, adminData.exams || [], k);
+    const cats = critCats(), cnt = {}, raw = {};
+    adminData.assignments.forEach((a) => { cnt[a.cat] = (cnt[a.cat] || 0) + 1; raw[a.cat] = (raw[a.cat] || 0) + a.max; });
+    const wRows = cats.map((c, i) => `<div class="grid grid-cols-5 gap-2 items-center"><div class="col-span-3 text-sm"><b>${esc(c)}</b><div class="text-xs text-slate-500">${cnt[c] ? cnt[c] + " งาน · คะแนนที่ให้จริงรวม " + fmt(raw[c]) : "ยังไม่มีงานในหมวดนี้"}</div></div><div class="col-span-2"><input id="cw${i}" oninput="critOverview()" type="number" min="0" max="100" step="0.5" value="${k.w[c] !== undefined ? k.w[c] : ""}" placeholder="นับตามจริง" class="${inC}"></div></div>`).join("");
     return `<div class="max-w-3xl space-y-5">
       <div><h3 class="font-bold text-slate-700 text-lg"><i class="fa-solid fa-scale-balanced text-indigo-600 mr-2"></i>ตั้งเกณฑ์คะแนนเอง</h3><p class="text-xs text-slate-500">ตั้งแล้วกด "บันทึกเกณฑ์" นักเรียนทุกคนจะเห็นเกรดตามเกณฑ์ใหม่ทันที</p></div>
       <div class="p-4 bg-slate-50 border rounded-xl"><h4 class="font-semibold text-slate-700 mb-1">1) เกณฑ์เกรด (ร้อยละขั้นต่ำ)</h4><p class="text-xs text-slate-500 mb-2">เรียงจากมากไปน้อย ต่ำกว่าเกรด 1 = เกรด 0</p>
@@ -1426,10 +1492,13 @@ const AVIEWS = {
        <p id="critPreview" class="text-xs text-indigo-700 mt-2"></p></div>
       <div class="p-4 bg-slate-50 border rounded-xl"><h4 class="font-semibold text-slate-700 mb-1">2) คะแนนเช็คชื่อต่อครั้ง (0 – 1)</h4>
        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">${ATT.map((x, i) => `<div><label class="text-xs font-semibold text-slate-600">${x}</label><input id="ca${i}" type="number" min="0" max="1" step="0.25" value="${k.a[i]}" class="${inC}"></div>`).join("")}</div></div>
-      <div class="p-4 bg-slate-50 border rounded-xl"><h4 class="font-semibold text-slate-700 mb-1">3) คะแนนจิตพิสัย (จากเช็คชื่อ) เต็มเท่าไหร่?</h4>
-       <p class="text-xs text-slate-500 mb-2">ใส่คะแนนเต็มของเช็คชื่อ เช่น 10 = เช็คชื่อ 100% ได้ 10 คะแนนเต็ม · ใส่ 0 = ไม่นับรวม · นักเรียนจะเห็นคะแนนจิตพิสัยปัจจุบัน เช่น 7.5 / 10 (ค่าเริ่มต้น 10)</p>
-       <div class="w-40"><label class="text-xs font-semibold text-slate-600">คะแนนเต็มจิตพิสัย</label><input id="cam" type="number" min="0" max="100" step="0.5" value="${k.m}" class="${inC}"></div></div>
-      <div class="p-4 bg-white border rounded-xl"><h4 class="font-semibold text-slate-700 mb-1">คะแนนเต็มรวมที่วางไว้ (งานทั้งหมด + เช็คชื่อ)</h4><p class="text-xs text-slate-500 mb-2">เขียวคือครบ 100 พอดี · เหลืองคือยังไม่ถึง/เกิน 100 (เกรดจริงจะแสดงให้นักเรียนเมื่อคะแนนเต็มครบ 100 และตรวจครบทุกงาน)</p><div class="flex flex-wrap gap-2">${totals}</div></div>
+      <div class="p-4 bg-slate-50 border rounded-xl"><h4 class="font-semibold text-slate-700 mb-1">3) คะแนนจิตพิสัย เต็มเท่าไหร่?</h4>
+       <p class="text-xs text-slate-500 mb-2">จิตพิสัย = คะแนนเช็คชื่อ − คะแนนที่หักพฤติกรรม (เช่น แต่งกายไม่เรียบร้อย ครูหักได้ที่เมนู "คะแนนเช็คชื่อ") · เช่น ใส่ 20 = เช็คชื่อครบ 100% และไม่ถูกหัก ได้ 20 เต็ม · ใส่ 0 = ไม่นับรวม (ห้องใหม่เริ่มที่ 20)</p>
+       <div class="w-40"><label class="text-xs font-semibold text-slate-600">คะแนนเต็มจิตพิสัย</label><input id="cam" oninput="critOverview()" type="number" min="0" max="100" step="0.5" value="${k.m}" class="${inC}"></div></div>
+      <div class="p-4 bg-slate-50 border rounded-xl"><h4 class="font-semibold text-slate-700 mb-1">4) สัดส่วนคะแนนรายหมวด (คะแนนรวมของแต่ละหมวดในรายวิชา)</h4>
+       <p class="text-xs text-slate-500 mb-3">ใส่ว่าทั้งหมวดนับรวมกันกี่คะแนน ระบบจะย่อ/ขยายคะแนนของงานในหมวดให้เอง เช่น ใบงาน 15 ใบ ใบละ 100 คะแนน ใส่ 10 = ทั้งหมวดรวมเป็น 10 คะแนน · แบบฝึกหัด 10 เรื่อง ใส่ 10 = รวม 10 คะแนน · เพิ่มงานทีหลังก็ยังรวมเท่าเดิม · เว้นว่าง = นับตามคะแนนที่ให้จริง · การสอบกำหนดที่เมนู "สอบ"</p>
+       <div class="space-y-2">${wRows}</div></div>
+      <div class="p-4 bg-white border rounded-xl"><h4 class="font-semibold text-slate-700 mb-1">คะแนนเต็มรวมที่วางไว้ (งาน + สอบ + จิตพิสัย)</h4><p class="text-xs text-slate-500 mb-2">ต้องรวมได้ 100 เกรดจึงจะประกาศให้นักเรียน (ตัวเลขข้างล่างอัปเดตทันทีตามที่พิมพ์ ยังไม่บันทึกจนกว่าจะกดปุ่ม)</p><div id="critTotals">${sharesTable(sh)}<div class="mt-2">${totalBadge(sh.total)}</div></div></div>
       <div class="flex flex-wrap gap-2"><button type="button" onclick="saveCriteria(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกเกณฑ์</span></button>
        <button type="button" onclick="resetCriteriaInputs()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm">ใช้ค่ามาตรฐาน (80/75/70/65/60/55/50)</button></div>
       <hr class="my-2">
@@ -1540,8 +1609,10 @@ function saveAttend(btn) {
 function editAssign(id) {
   const a = adminData.assignments.find((x) => x.id === id);
   if (!a) return;
+  const sel = $("asgCat");
+  if (![...sel.options].some((o) => o.value === a.cat)) sel.add(new Option(a.cat + " (หมวดเดิม)", a.cat)); // งานเก่าที่อยู่หมวดอื่น ยังคงหมวดเดิมไว้ได้
   $("asgId").value = a.id; $("asgName").value = a.name; $("asgMax").value = a.max; $("asgDue").value = a.due || ""; $("asgDetail").value = a.detail || "";
-  $("asgCat").value = a.cat; $("asgUnit").value = a.unit || ""; $("asgTarget").value = a.target || "";
+  sel.value = a.cat; $("asgUnit").value = a.unit || "";
   asgFiles = (a.files || []).slice(); renderAsgFiles();
   $("asgForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -1549,7 +1620,7 @@ function editAssign(id) {
 function saveAssign(btn) {
   run(btn, "กำลังบันทึก...", async () => {
     const assignment = { id: $("asgId").value, name: $("asgName").value.trim(), max: $("asgMax").value, due: $("asgDue").value, detail: $("asgDetail").value.trim(),
-      cat: $("asgCat").value, unit: $("asgUnit").value.trim(), target: $("asgTarget").value, files: asgFiles };
+      cat: $("asgCat").value, unit: $("asgUnit").value.trim(), files: asgFiles };
     if (!assignment.name || !(Number(assignment.max) > 0)) throw new Error("กรุณากรอกชื่องานและคะแนนเต็ม");
     await adminCall({ action: "adminSaveAssignment", assignment });
     asgFiles = [];
@@ -1558,6 +1629,58 @@ function saveAssign(btn) {
     return true;
   });
 }
+
+/* ----- เมนูสอบ ----- */
+function addExam(btn) {
+  run(btn, "กำลังบันทึก...", async () => {
+    const name = $("exNewName").value.trim(), max = Number($("exNewMax").value);
+    if (!name) throw new Error("กรุณากรอกชื่อรายการสอบ (เช่น สอบกลางภาค)");
+    if (!(max > 0) || max > 100) throw new Error("คะแนนเต็มต้องมากกว่า 0 และไม่เกิน 100");
+    await adminCall({ action: "adminSaveExam", exam: { name, max } });
+    await loadAdminData();
+    toast("เพิ่มรายการสอบแล้ว", "success");
+    return true;
+  });
+}
+function saveExamRow(btn) {
+  run(btn, "กำลังบันทึก...", async () => {
+    const tr = btn.closest("tr"), name = tr.querySelector(".ex-name").value.trim(), max = Number(tr.querySelector(".ex-max").value);
+    if (!name) throw new Error("กรุณากรอกชื่อรายการสอบ");
+    if (!(max > 0) || max > 100) throw new Error("คะแนนเต็มต้องมากกว่า 0 และไม่เกิน 100");
+    await adminCall({ action: "adminSaveExam", exam: { id: tr.dataset.eid, name, max } });
+    await loadAdminData();
+    toast("บันทึกรายการสอบแล้ว", "success");
+    return true;
+  });
+}
+const deleteExam = (id) => adminDo("ลบรายการสอบนี้และคะแนนสอบทั้งหมดของรายการนี้ใช่ไหม?", { action: "adminDeleteAssignment", id }, "ลบรายการสอบแล้ว");
+function saveExamScores(btn) {
+  run(btn, "กำลังบันทึก...", async () => {
+    const items = [];
+    for (const el of document.querySelectorAll(".exam-in")) {
+      if (el.value === el.dataset.orig) continue;
+      const n = Number(el.value);
+      if (el.value !== "" && (isNaN(n) || n < 0 || n > Number(el.max))) throw new Error("คะแนนสอบต้องอยู่ระหว่าง 0 ถึง " + el.max);
+      items.push({ sid: el.dataset.sid, aid: el.dataset.aid, score: el.value });
+    }
+    return saveRecords(items);
+  });
+}
+
+/* ----- หักคะแนนจิตพิสัย (พฤติกรรม) ----- */
+function addDeduction(btn) {
+  run(btn, "กำลังบันทึก...", async () => {
+    const sid = $("dedSid").value, reason = $("dedReason").value.trim(), points = Number($("dedPts").value), date = $("dedDate").value;
+    if (!sid) throw new Error("กรุณาเลือกนักเรียน");
+    if (!reason) throw new Error("กรุณาระบุเหตุผลที่หักคะแนน");
+    if (!(points > 0) || points > 100) throw new Error("คะแนนที่หักต้องมากกว่า 0");
+    await adminCall({ action: "adminAddDeduction", sid, reason, points, date });
+    await loadAdminData();
+    toast("บันทึกการหักคะแนนแล้ว", "success");
+    return true;
+  });
+}
+const deleteDeduction = (id) => adminDo("ลบรายการหักคะแนนนี้ใช่ไหม? (คะแนนจิตพิสัยของนักเรียนจะกลับมา)", { action: "adminDeleteDeduction", id }, "ลบรายการหักคะแนนแล้ว");
 
 let adminBusy = false;
 async function adminDo(confirmMsg, payload, okMsg) {
@@ -1623,11 +1746,23 @@ function critPreview() {
   const g = GR.map((_, i) => Number($("cg" + i).value));
   el.textContent = "ตัวอย่าง: " + GR.map((x, i) => "เกรด " + x + " ≥ " + g[i] + "%").join(" · ");
 }
+// หมวดที่ตั้งสัดส่วนได้: หมวดงานทั้งหมด + หมวดเก่าที่ยังมีงานอยู่ (ข้อมูลเดิม)
+function critCats() { return ASSIGN_CATS.concat([...new Set((adminData.assignments || []).map((a) => a.cat))].filter((c) => !ASSIGN_CATS.includes(c))); }
+function critInputs() { // อ่านค่าที่กำลังพิมพ์ในแท็บเกณฑ์
+  const w = {};
+  critCats().forEach((c, i) => { const el = $("cw" + i); if (el && el.value.trim() !== "") w[c] = Number(el.value); });
+  return { w, m: Math.max(0, Number($("cam").value) || 0) };
+}
+function critOverview() { // ตารางสัดส่วน + ผลรวม อัปเดตสดตามที่พิมพ์
+  const el = $("critTotals"); if (!el) return;
+  const sh = courseShares(adminData.assignments, adminData.exams || [], critInputs());
+  el.innerHTML = sharesTable(sh) + `<div class="mt-2">${totalBadge(sh.total)}</div>`;
+}
 function resetCriteriaInputs() {
   DEF_G.forEach((v, i) => { $("cg" + i).value = v; });
   DEF_A.forEach((v, i) => { $("ca" + i).value = v; });
-  $("cam").value = 10; critPreview();
-  toast("ใส่ค่ามาตรฐานแล้ว กด \"บันทึกเกณฑ์\" เพื่อใช้งานจริง", "info");
+  $("cam").value = 20; critPreview(); critOverview();
+  toast("ใส่ค่ามาตรฐานแล้ว กด \"บันทึกเกณฑ์\" เพื่อใช้งานจริง (สัดส่วนรายหมวดไม่ถูกเปลี่ยน)", "info");
 }
 function saveCriteria(btn) {
   run(btn, "กำลังบันทึก...", async () => {
@@ -1635,8 +1770,14 @@ function saveCriteria(btn) {
     if (grades.some((x) => isNaN(x) || x < 0 || x > 100)) throw new Error("เกณฑ์เกรดต้องเป็นตัวเลข 0-100");
     for (let i = 1; i < 7; i++) if (grades[i] > grades[i - 1]) throw new Error("เกณฑ์ต้องเรียงจากมากไปน้อย (เกรด 4 สูงสุด)");
     if (att.some((x) => isNaN(x) || x < 0 || x > 1)) throw new Error("คะแนนเช็คชื่อต่อครั้งต้องอยู่ระหว่าง 0 ถึง 1");
-    if (isNaN(attMax) || attMax < 0 || attMax > 100) throw new Error("คะแนนเต็มเช็คชื่อต้องอยู่ระหว่าง 0 ถึง 100");
-    await adminCall({ action: "adminSaveCriteria", grades, att, attMax });
+    if (isNaN(attMax) || attMax < 0 || attMax > 100) throw new Error("คะแนนเต็มจิตพิสัยต้องอยู่ระหว่าง 0 ถึง 100");
+    const weights = {};
+    critCats().forEach((c, i) => {
+      const v = $("cw" + i).value.trim(); if (v === "") return;
+      const n = Number(v); if (!isFinite(n) || n < 0 || n > 100) throw new Error("สัดส่วนของหมวด \"" + c + "\" ต้องอยู่ระหว่าง 0 ถึง 100");
+      weights[c] = n;
+    });
+    await adminCall({ action: "adminSaveCriteria", grades, att, attMax, weights });
     await loadAdminData();
     toast("บันทึกเกณฑ์แล้ว", "success");
     return true;
