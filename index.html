@@ -91,6 +91,11 @@ body.side-open{overflow:hidden}
 .sb-badge{background:#dc2626;color:#fff;border-radius:9999px;font-size:.7rem;padding:0 .45rem;line-height:1.15rem;font-weight:700}
 .sb-room{margin:.6rem 1rem .2rem;padding:.6rem .8rem;border-radius:.6rem;background:#faf3f4;border:1px solid #f0d9de;font-size:.85rem;color:#43101a}
 .sb-foot{border-top:1px solid #e3e6ea;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.sb-item.sub{padding-left:2.7rem;min-height:44px;font-size:.9rem;background:#fcf7f8}
+.sb-item.sub i{font-size:.85rem}
+.sb-item.cur{background:#faf3f4;font-weight:600;color:#6b1625}
+.sb-item.cur i{color:#6b1625}
+.sb-note{padding:.7rem 1.1rem;font-size:.85rem;color:#80868f}
 .sb-item.out{color:#a42a3f;border-bottom:0}
 .sb-item.out i{color:#a42a3f}
 #pageHead{background:#fff;border-bottom:1px solid #e3e6ea;padding:.85rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
@@ -383,15 +388,21 @@ function renderChrome() {
     const d = stData, me = d ? d.me : currentUser;
     const ready = !!d && !d.noRoom && !d.needClass;
     const unread = d && d.notes ? d.notes.length : 0;
+    const acct = ST_ACCT.includes(stTab);
+    const curId = acct ? "" : (stRoom || (d && d.room && d.room.id) || "");
     who = { a: me.avatar, n: me.name || me.nick || "นักเรียน", s: "นักเรียน" + (me.studentId ? " · " + me.studentId : "") };
-    menu += sbSec("เมนูนักเรียน") + sbItem({ label: "หน้าหลัก (เลือกวิชา)", icon: "fa-house", js: "goPicker()", on: stTab === "rooms" || !ready })
-      + sbItem({ label: "เข้าห้องใหม่ด้วยรหัส", icon: "fa-plus", js: "goJoin()" });
-    if (ready) {
-      const sj = d.room ? esc(d.room.subject || d.room.name) : "";
-      menu += sbSec("วิชา: " + sj) + ST_TABS.map(([id, label, icon]) => sbItem({ label, icon, js: `setStTab('${id}')`, on: stTab !== "rooms" && id === stTab, badge: id === "home" ? unread : 0 })).join("");
-    }
-    if (ready && stTab !== "rooms") { title = (ST_TABS.find((x) => x[0] === stTab) || ST_TABS[0])[1]; crumb = d.room ? esc(d.room.subject || d.room.name) : ""; }
-    else { title = "หน้าหลัก"; crumb = "เลือกวิชา"; }
+    menu += sbSec("บัญชีของฉัน") + sbItem({ label: "ข้อมูลของฉัน", icon: "fa-user", js: "setStTab('me')", on: stTab === "me" });
+    menu += sbSec("วิชาเรียน");
+    if (!stRooms.length) menu += '<div class="sb-note">ยังไม่มีวิชา กดเข้าร่วมห้องเรียนด้านล่างเพื่อเริ่มต้น</div>';
+    stRooms.forEach((r) => {
+      const isCur = r.id === curId;
+      menu += sbItem({ label: esc(r.subject || r.name), icon: "fa-book", js: `pickRoom('${esc(r.id)}')`, cls: isCur ? "cur" : "" });
+      if (isCur && ready && d.room && d.room.id === r.id) menu += ST_TABS.map(([id, label, icon]) => sbItem({ label, icon, js: `setStTab('${id}')`, on: id === stTab, cls: "sub", badge: id === "home" ? unread : 0 })).join("");
+    });
+    menu += sbItem({ label: "เข้าร่วมห้องเรียน", icon: "fa-plus", js: "setStTab('join')", on: stTab === "join" });
+    menu += sbSec("ตั้งค่า") + sbItem({ label: "เปลี่ยนรหัสผ่าน", icon: "fa-key", js: "setStTab('pw')", on: stTab === "pw" });
+    if (acct) { title = ST_ACCT_TITLES[stTab] || "ข้อมูลของฉัน"; crumb = "บัญชีของฉัน"; }
+    else { title = (ST_TABS.find((x) => x[0] === stTab) || ST_TABS[0])[1]; crumb = d && d.room ? esc(d.room.subject || d.room.name) : ""; }
     foot = sbItem({ label: "ออกจากระบบ", icon: "fa-right-from-bracket", js: "studentLogout()", cls: "out" });
   } else {
     const c = (adminData && adminData.profile) || {};
@@ -769,7 +780,7 @@ function pickChip(p, key, btn) {
 const pickedClass = (p) => { const g = (k) => $(p + "-" + k).dataset.value; if (!g("lv") || !g("rm") || !g("sb")) throw new Error("กรุณาเลือกระดับชั้น ห้อง และกลุ่มของคุณให้ครบ"); return g("lv") + "/" + g("rm") + "/" + g("sb"); };
 document.addEventListener("DOMContentLoaded", () => { $("regClassBox").innerHTML = classPick("rg"); });
 let pendingCode = "";
-const joinBox = () => `<div class="space-y-2"><h3 class="font-bold text-slate-700"><i class="fa-solid fa-door-open text-indigo-600 mr-2"></i>เข้าร่วมห้องเรียน</h3><p class="text-xs text-slate-500">กรอกรหัสห้อง 6 ตัวที่ครูให้ (หรือกดลิงก์/สแกน QR จากครู) แล้วกดเข้าห้อง (ระบบใช้ระดับชั้น/ห้อง/กลุ่มที่คุณเลือกตอนสมัครให้อัตโนมัติ)</p><input id="joinCode" maxlength="8" value="${esc(pendingCode)}" placeholder="รหัสห้อง เช่น K7M2QX" class="${inC} uppercase tracking-widest font-bold text-center text-lg py-3"><button type="button" onclick="handleJoin(this)" class="${btnP} w-full"><span>เข้าห้อง</span></button></div>`;
+const joinBox = (noTitle) => `<div class="space-y-2">${noTitle ? "" : '<h3 class="font-bold text-slate-700"><i class="fa-solid fa-door-open text-indigo-600 mr-2"></i>เข้าร่วมห้องเรียน</h3>'}<p class="text-xs text-slate-500">กรอกรหัสห้อง 6 ตัวที่ครูให้ (หรือกดลิงก์/สแกน QR จากครู) แล้วกดเข้าห้อง (ระบบใช้ระดับชั้น/ห้อง/กลุ่มที่คุณเลือกตอนสมัครให้อัตโนมัติ)</p><input id="joinCode" maxlength="8" value="${esc(pendingCode)}" placeholder="รหัสห้อง เช่น K7M2QX" class="${inC} uppercase tracking-widest font-bold text-center text-lg py-3"><button type="button" onclick="handleJoin(this)" class="${btnP} w-full"><span>เข้าห้อง</span></button></div>`;
 const classPanel = () => `<div class="bg-white rounded-2xl shadow-md border p-6 max-w-md mx-auto text-center space-y-3"><div class="text-4xl text-indigo-700"><i class="fa-solid fa-tags"></i></div><h3 class="text-xl font-bold text-slate-800">เลือกระดับชั้น ห้อง และกลุ่มของคุณ</h3><p class="text-xs text-slate-500">เลือกครั้งเดียว หลังจากนี้ถ้าจะเปลี่ยนให้แจ้งครูเป็นคนแก้ให้</p>${classPick("sc")}<button type="button" onclick="handleSetClass(this)" class="${btnP} w-full"><span>บันทึก</span></button></div>`;
 const joinPanel = () => `<div class="bg-white rounded-2xl shadow-md border p-6 max-w-md mx-auto text-center space-y-3"><div class="text-4xl text-indigo-700"><i class="fa-solid fa-school"></i></div><h3 class="text-xl font-bold text-slate-800">ยังไม่ได้เข้าห้องเรียน</h3><p class="text-xs text-slate-500">สมัครบัญชีแล้ว ขั้นต่อไปคือกรอกรหัสห้องที่ครูให้</p>${joinBox()}</div>`;
 function handleJoin(btn) {
@@ -826,21 +837,23 @@ function renderRoomDrawer() {
 }
 function pickRoom(id) {
   closeRoomDrawer();
-  if (stData && stData.room && stData.room.id === id) { stTab = "home"; renderStudent(); return; }
-  stRoom = id; stData = null; stTab = "home"; stJoinMode = false; stLoading = true; renderStudent();
-  fetchStudent().catch((e) => toast(e.message)).finally(() => { stLoading = false; renderStudent(); });
+  const same = stData && stData.room && stData.room.id === id;
+  if (!same) { stRoom = id; stData = null; stJoinMode = false; stLoading = true; }
+  showView("studentDashboard", "home");
+  if (!same) fetchStudent().catch((e) => toast(e.message)).finally(() => { stLoading = false; renderStudent(); });
 }
 function goJoin() {
   closeRoomDrawer();
-  if (stData && !stData.noRoom && !stData.needClass) { stTab = "me"; renderStudent(); }
-  else { stJoinMode = true; renderStudent(); }
+  setStTab("join");
 }
 async function autoJoin() { // ลิงก์/QR เชิญ: เติมรหัสห้องให้ แล้วให้นักเรียนเลือกห้อง-กลุ่มของตัวเองก่อนเข้า
   try { pendingCode = sessionStorage.getItem("joinCode") || ""; sessionStorage.removeItem("joinCode"); } catch (_) {}
-  if (pendingCode) { stTab = "me"; toast("ตรวจรหัสห้องแล้วกด เข้าห้อง", "info"); }
+  if (pendingCode) { stTab = "join"; toast("ตรวจรหัสห้องแล้วกด เข้าห้อง", "info"); }
 }
 const roomSwitch = (d) => `<button type="button" onclick="openRoomDrawer()" class="text-sm bg-white text-indigo-800 hover:bg-indigo-50 font-semibold px-3 py-2 rounded-xl max-w-[13rem] truncate"><i class="fa-solid fa-door-open mr-1"></i>${d && d.room ? esc(d.room.name) : "เลือกห้องเรียน"} <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i></button>`;
-const ST_TABS = [["home", "ภาพรวมวิชา", "fa-chart-pie"], ["work", "งานและคะแนน", "fa-book-open"], ["att", "เช็คชื่อ", "fa-calendar-check"], ["rule", "เกณฑ์รายวิชา", "fa-scale-balanced"], ["teacher", "ประวัติครูผู้สอน", "fa-chalkboard-user"], ["me", "ข้อมูลของฉัน", "fa-user"]];
+const ST_TABS = [["home", "ภาพรวมวิชา", "fa-chart-pie"], ["work", "งานและคะแนน", "fa-book-open"], ["att", "เช็คชื่อ", "fa-calendar-check"], ["rule", "เกณฑ์รายวิชา", "fa-scale-balanced"], ["teacher", "ประวัติครูผู้สอน", "fa-chalkboard-user"]];
+const ST_ACCT = ["me", "join", "pw"]; // หน้าบัญชี: ไม่ต้องรอข้อมูลวิชา
+const ST_ACCT_TITLES = { me: "ข้อมูลของฉัน", join: "เข้าร่วมห้องเรียน", pw: "เปลี่ยนรหัสผ่าน" };
 let stData = null, stTimer = null, lastStudentHit = 0;
 
 // จำวิชาที่นักเรียนเลือกล่าสุด (ต่อบัญชี) เพื่อเข้าให้อัตโนมัติรอบหน้า
@@ -848,15 +861,14 @@ const lastRoomKey = () => "lastRoom:" + ((currentUser && currentUser.studentId) 
 function lastRoomGet() { try { return localStorage.getItem(lastRoomKey()) || ""; } catch (_) { return ""; } }
 function lastRoomSet(id) { try { if (id && currentUser) localStorage.setItem(lastRoomKey(), id); } catch (_) {} }
 function enterDashboard() {
-  stData = null; stTab = "rooms"; stRoom = ""; stLoading = false; stJoinMode = false;
-  resetNav("studentDashboard", "rooms");
+  stData = null; stTab = "me"; stRoom = ""; stLoading = false; stJoinMode = false;
+  resetNav("studentDashboard", "me"); // เข้าระบบครั้งแรก = หน้าข้อมูลของฉัน
   autoJoin().then(() => {
-    if (pendingCode || !stRooms.length || !currentUser.class) return fetchStudent(); // ลิงก์เชิญ / ยังไม่มีห้อง / ยังไม่เคยเลือกห้อง-กลุ่ม -> ไปหน้านั้นเลย
-    renderStudent(); // หน้าหลัก = รายการวิชาที่ลงทะเบียนไว้ ให้นักเรียนแตะเลือกเอง (ไม่เข้าวิชาให้อัตโนมัติ)
+    if (pendingCode || !currentUser.class) return fetchStudent(); // ลิงก์เชิญ / ยังไม่เคยเลือกห้อง-กลุ่ม
+    renderStudent();
   }).catch((e) => toast(e.message));
   startStudentTimer();
 }
-const goPicker = () => setStTab("rooms");
 
 async function fetchStudent() {
   const r = await postData({ action: "getScores", email: currentUser.email, token: currentUser.token, roomId: stRoom });
@@ -886,36 +898,23 @@ function renderStudent() {
   if (!currentUser) return;
   const d = stData, me = d ? d.me : currentUser;
   const unread = d && d.notes ? d.notes.length : 0;
-  $("stHeader").innerHTML = `<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-    <div class="h-1 bg-gradient-to-r from-indigo-900 via-indigo-700 to-[#c9a227]"></div>
-    <div class="p-3 sm:p-4 flex flex-wrap items-center gap-3">
-     <div class="w-12 h-12 sm:w-14 sm:h-14 text-2xl sm:text-3xl rounded-full bg-indigo-50 ring-2 ring-[#c9a227] flex items-center justify-center shrink-0 overflow-hidden">${avSpan(me.avatar)}</div>
-     <div class="min-w-0 flex-1 basis-48"><h2 class="text-base sm:text-lg font-bold text-slate-900 leading-tight break-words">${esc(me.name || me.nick)}</h2>
-      <p class="text-xs sm:text-sm text-slate-600">รหัสนักเรียน ${esc(me.studentId)}${me.no ? " · เลขที่ " + esc(me.no) : ""}${me.class ? " · ห้อง " + esc(me.class) : ""}</p>
-      ${d && d.room ? `<p class="text-xs sm:text-sm text-slate-600">${(() => { const sj = courseOf(d.teacher).name || (d.teacher && d.teacher.subject) || ""; return sj ? "รายวิชา: <b class=\"text-slate-800\">" + esc(sj) + "</b> · ห้อง " + esc(d.room.name) : "ห้องเรียน: <b class=\"text-slate-800\">" + esc(d.room.name) + "</b>"; })()}${d.room.teacher ? " · ครูผู้สอน " + esc(d.room.teacher) : ""}</p>` : ""}</div>
-     <div class="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex">
-      <button type="button" onclick="goPicker()" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-repeat mr-1"></i>เปลี่ยนวิชา</button>
-      ${d && d.room ? `<button type="button" onclick="loadStudentScores(this)" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"><span><i class="fa-solid fa-rotate mr-1"></i>รีเฟรช</span></button>` : "<span></span>"}</div></div></div>`;
+  const subjTab = !ST_ACCT.includes(stTab), ready = !!d && !d.noRoom && !d.needClass;
+  $("stHeader").innerHTML = subjTab && ready ? (() => {
+    const sj = courseOf(d.teacher).name || (d.teacher && d.teacher.subject) || (d.room && d.room.subject) || (d.room && d.room.name) || "";
+    return `<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden"><div class="h-1 bg-gradient-to-r from-indigo-900 via-indigo-700 to-[#c9a227]"></div>
+     <div class="p-3 sm:p-4 flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-indigo-700 text-amber-200 flex items-center justify-center shrink-0"><i class="fa-solid fa-book-open"></i></div>
+      <div class="min-w-0 flex-1"><div class="font-bold text-slate-900 leading-tight break-words">${esc(sj)}</div>
+       <div class="text-xs sm:text-sm text-slate-600">ห้อง ${esc(d.room.name)}${d.room.teacher ? " · ครูผู้สอน " + esc(d.room.teacher) : ""}</div></div>
+      <button type="button" onclick="loadStudentScores(this)" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60 shrink-0"><span><i class="fa-solid fa-rotate sm:mr-1"></i><span class="hidden sm:inline">รีเฟรช</span></span></button></div></div>`;
+  })() : "";
   $("stTabs").innerHTML = "";
-  if (stTab === "rooms" && !(d && (d.noRoom || d.needClass))) $("stHeader").innerHTML = "";
   renderChrome();
-  $("stBody").innerHTML = d ? (d.needClass ? classPanel() : d.noRoom ? joinPanel() : stTab === "rooms" ? pickerPanel() : (ST_VIEWS[stTab] || ST_VIEWS.home)(d))
-    : stLoading ? empty('<i class="fa-solid fa-spinner fa-spin mr-2"></i>กำลังโหลดข้อมูลห้องนี้...')
-    : stJoinMode ? joinPanel()
-    : pickerPanel();
-}
-
-function pickerPanel() { // หน้าหลักของนักเรียน: เลือกวิชา
-  const me = (stData && stData.me) || currentUser || {};
-  const hello = `<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden"><div class="h-1 bg-gradient-to-r from-indigo-900 via-indigo-700 to-[#c9a227]"></div>
-    <div class="p-4 flex items-center gap-3"><div class="w-14 h-14 text-3xl rounded-full bg-indigo-50 ring-2 ring-[#c9a227] flex items-center justify-center shrink-0 overflow-hidden">${avSpan(me.avatar)}</div>
-    <div class="min-w-0"><div class="text-xs text-slate-500">สวัสดี</div><div class="text-lg font-bold text-slate-900 leading-tight break-words">${esc(me.name || me.nick || "")}</div>
-    <div class="text-xs sm:text-sm text-slate-600">รหัสนักเรียน ${esc(me.studentId || "")}${me.class ? " · ห้อง " + esc(me.class) : ""}</div></div></div></div>`;
-  if (!stRooms.length) return `<div class="max-w-3xl mx-auto space-y-4">${hello}<div class="bg-white rounded-2xl shadow-md border p-8 text-center space-y-3"><div class="text-4xl text-indigo-700"><i class="fa-solid fa-door-open"></i></div><h3 class="text-xl font-bold text-slate-800">ยังไม่มีวิชา</h3><p class="text-sm text-slate-500">กรอกรหัสห้องที่ได้จากครูเพื่อเข้าวิชา</p><button type="button" onclick="goJoin()" class="${btnP}"><i class="fa-solid fa-plus mr-1"></i>เข้าห้องด้วยรหัสห้อง</button></div></div>`;
-  return `<div class="max-w-3xl mx-auto space-y-4">${hello}
-    <div><h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-book-open text-indigo-600 mr-2"></i>เลือกวิชาที่ต้องการดู</h3><p class="text-sm text-slate-500">แตะที่วิชา คะแนนของแต่ละวิชาแยกกัน</p></div>
-    <div class="grid sm:grid-cols-2 gap-3">${stRoomCards("")}</div>
-    <button type="button" onclick="goJoin()" class="w-full border-2 border-dashed border-indigo-300 text-indigo-700 rounded-2xl py-3 text-sm font-semibold hover:bg-indigo-50"><i class="fa-solid fa-plus mr-1"></i>เข้าห้องใหม่ด้วยรหัสห้อง</button></div>`;
+  $("stBody").innerHTML = d && d.needClass ? classPanel()
+    : stTab === "me" ? meView() : stTab === "join" ? joinView() : stTab === "pw" ? pwView()
+    : d ? (d.noRoom ? joinPanel() : (ST_VIEWS[stTab] || ST_VIEWS.home)(d))
+    : stLoading ? empty('<i class="fa-solid fa-spinner fa-spin mr-2"></i>กำลังโหลดข้อมูลวิชานี้...')
+    : `<div class="bg-white rounded-2xl shadow-md border p-8 max-w-md mx-auto text-center space-y-3"><div class="text-4xl text-indigo-700"><i class="fa-solid fa-book-open"></i></div><h3 class="text-xl font-bold text-slate-800">เลือกวิชาจากเมนู</h3><p class="text-sm text-slate-500">แตะชื่อวิชาในเมนูเพื่อดูคะแนนและงาน</p><button type="button" onclick="openSide()" class="${btnP} lg:hidden"><i class="fa-solid fa-bars mr-1"></i>เปิดเมนู</button></div>`;
 }
 
 /* ===== UI นักเรียน: แบบเรียบ เป็นทางการ ===== */
@@ -1049,24 +1048,34 @@ const ST_VIEWS = {
       ${sBox("ประวัติครูผู้สอน", "fa-id-card", body ? `<dl>${body}</dl>` : '<p class="text-sm text-slate-500 py-2">ครูผู้สอนยังไม่ได้กรอกประวัติ</p>')}
     </div>`;
   },
-  me(d) {
-    const m = d.me;
-    return `<div class="bg-white rounded-2xl shadow-md border p-5 space-y-4 max-w-xl mx-auto"><h3 class="font-bold text-slate-700"><i class="fa-solid fa-user-pen text-indigo-600 mr-2"></i>ข้อมูลส่วนตัวและการตั้งค่าบัญชี</h3>
-     <div class="flex items-center gap-3">
-      <div id="pfAvatarPrev" class="w-16 h-16 text-3xl rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden shrink-0">${avSpan(m.avatar)}</div>
-      <label class="cursor-pointer bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-camera mr-1"></i>อัปโหลดรูปจากเครื่อง<input type="file" accept="image/*" class="hidden" onchange="pickPhoto(this,'pfAvatar')"></label>
-      <button type="button" onclick="clearPhoto('pfAvatar')" class="text-sm text-slate-500 underline">ลบรูป</button>
-     </div>
-     <div><label class="text-xs font-semibold text-slate-600">หรือเลือกรูปประจำตัว</label><div class="flex flex-wrap gap-2 mt-1">${AVATARS.map((a) => `<button type="button" data-a="${a}" onclick="pickAvatar('${a}',this)" class="av-opt text-2xl w-11 h-11 rounded-full border bg-indigo-50 ${a === m.avatar ? "ring-2 ring-indigo-600" : ""}">${a}</button>`).join("")}</div><input type="hidden" id="pfAvatar" value="${esc(m.avatar)}"></div>
-     <div><label class="text-xs font-semibold text-slate-600">ชื่อเล่น / ชื่อที่ต้องการแสดง</label><input id="pfNick" maxlength="30" value="${esc(m.nick)}" class="${inC}"></div>
-     <div><label class="text-xs font-semibold text-slate-600">แนะนำตัวสั้น ๆ</label><textarea id="pfBio" maxlength="200" rows="3" class="${inC}">${esc(m.bio)}</textarea></div>
-     <div class="grid grid-cols-2 gap-2 text-sm text-slate-500 bg-slate-50 rounded-xl p-3"><div>ชื่อ: ${esc(m.name)}</div><div>รหัส: <b>${esc(m.studentId)}</b></div><div>ห้อง: <b>${esc(m.class || "-")}</b></div><div class="break-all">อีเมล: ${esc(m.email)}</div><div class="col-span-2 text-xs">ห้อง/กลุ่มเปลี่ยนเองไม่ได้ หากข้อมูลห้อง/ชื่อ/รหัสไม่ถูกต้อง กรุณาแจ้งครูผู้สอน</div></div>
-     <button type="button" onclick="saveStudentProfile(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโปรไฟล์</span></button>
-     <hr>${joinBox()}<hr><h3 class="font-bold text-slate-700"><i class="fa-solid fa-key text-indigo-600 mr-2"></i>เปลี่ยนรหัสผ่าน</h3>
-     <input id="pwOld" type="password" placeholder="รหัสผ่านเดิม" class="${inC}"><input id="pwNew" type="password" placeholder="รหัสผ่านใหม่ (8 ตัวขึ้นไป ขึ้นต้น A-Z มี a-z และตัวเลข)" class="${inC}">
-     <button type="button" onclick="changePw(this)" class="${btnP}"><span>เปลี่ยนรหัสผ่าน</span></button></div>`;
-  },
 };
+
+/* ----- หน้าบัญชีของนักเรียน (ไม่ผูกกับวิชา) ----- */
+function meView() {
+  const m = (stData && stData.me) || currentUser || {};
+  const row = (k, v) => `<div class="grid sm:grid-cols-3 gap-0.5 sm:gap-3 py-2.5 border-b border-slate-100 last:border-0"><dt class="text-sm text-slate-500">${k}</dt><dd class="sm:col-span-2 font-medium text-slate-800 break-words">${v ? esc(v) : "-"}</dd></div>`;
+  return `<div class="max-w-3xl mx-auto space-y-4">
+   ${sBox("ข้อมูลนักเรียน", "fa-id-card", `<div class="flex flex-col sm:flex-row gap-5">
+     <div class="flex flex-col items-center gap-2 sm:w-44 shrink-0">
+      <div id="pfAvatarPrev" class="w-28 h-28 text-6xl rounded-full bg-indigo-100 ring-2 ring-[#c9a227] flex items-center justify-center overflow-hidden">${avSpan(m.avatar)}</div>
+      <label class="cursor-pointer bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-camera mr-1"></i>เปลี่ยนรูป<input type="file" accept="image/*" class="hidden" onchange="pickPhoto(this,'pfAvatar')"></label>
+      <button type="button" onclick="clearPhoto('pfAvatar')" class="text-xs text-slate-500 underline">ลบรูป</button></div>
+     <dl class="flex-1 min-w-0">${row("ชื่อ - นามสกุล", m.name)}${row("รหัสนักเรียน", m.studentId)}${row("ระดับชั้น / ห้อง / กลุ่ม", m.class)}${m.no ? row("เลขที่", m.no) : ""}${row("อีเมล", m.email)}</dl></div>
+     <p class="mt-4 text-xs text-slate-500 bg-slate-50 rounded-lg p-3">ถ้าชื่อ รหัส หรือห้อง/กลุ่มไม่ถูกต้อง ให้แจ้งครูผู้สอนเป็นคนแก้ให้</p>`)}
+   ${sBox("แก้ไขโปรไฟล์", "fa-user-pen", `<div class="space-y-3">
+     <div><label class="text-sm font-semibold text-slate-600">หรือเลือกรูปประจำตัว</label><div class="flex flex-wrap gap-2 mt-1">${AVATARS.map((a) => `<button type="button" data-a="${a}" onclick="pickAvatar('${a}',this)" class="av-opt text-2xl w-11 h-11 rounded-full border bg-indigo-50 ${a === m.avatar ? "ring-2 ring-indigo-600" : ""}">${a}</button>`).join("")}</div><input type="hidden" id="pfAvatar" value="${esc(m.avatar)}"></div>
+     <div><label class="text-sm font-semibold text-slate-600">ชื่อเล่น / ชื่อที่ต้องการแสดง</label><input id="pfNick" maxlength="30" value="${esc(m.nick)}" class="${inC}"></div>
+     <div><label class="text-sm font-semibold text-slate-600">แนะนำตัวสั้น ๆ</label><textarea id="pfBio" maxlength="200" rows="3" class="${inC}">${esc(m.bio)}</textarea></div>
+     <button type="button" onclick="saveStudentProfile(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกโปรไฟล์</span></button></div>`)}
+  </div>`;
+}
+const joinView = () => `<div class="max-w-xl mx-auto">${sBox("เข้าร่วมห้องเรียน", "fa-door-open", joinBox(true))}</div>`;
+const pwView = () => `<div class="max-w-xl mx-auto">${sBox("เปลี่ยนรหัสผ่าน", "fa-key", `<div class="space-y-3">
+   <input id="pwOld" type="password" autocomplete="current-password" placeholder="รหัสผ่านเดิม" class="${inC}">
+   <input id="pwNew" type="password" autocomplete="new-password" placeholder="รหัสผ่านใหม่" class="${inC}">
+   <p class="text-xs text-slate-500">อย่างน้อย 8 ตัว ขึ้นต้นด้วย A-Z มี a-z และตัวเลข</p>
+   <label class="flex items-center gap-2 text-xs text-slate-500"><input type="checkbox" onchange="$('pwOld').type=$('pwNew').type=this.checked?'text':'password'"> แสดงรหัสผ่าน</label>
+   <button type="button" onclick="changePw(this)" class="${btnP} w-full sm:w-auto"><span>เปลี่ยนรหัสผ่าน</span></button></div>`)}</div>`;
 
 /* ----- รูปโปรไฟล์: ย่อรูปจากมือถือเป็น 160x160 (ครอบตัดกลาง) แล้วเก็บเป็น data URL ----- */
 function pickPhoto(inp, hid) {
@@ -2074,7 +2083,7 @@ setInterval(heartbeat, PING_MS);
 function startStudentTimer() { // รีเฟรชข้อมูลอัตโนมัติทุก 60 วินาที (เหมือนตอนเข้าสู่ระบบ)
   clearInterval(stTimer);
   stTimer = setInterval(() => {
-    if (!currentUser || !stData || document.hidden || stTab === "me" || stTab === "rooms" || stData.noRoom || stData.needClass || $("studentDashboard").classList.contains("hidden") || !$("roomDrawer").classList.contains("hidden")) return;
+    if (!currentUser || !stData || document.hidden || ST_ACCT.includes(stTab) || stData.noRoom || stData.needClass || $("studentDashboard").classList.contains("hidden") || !$("roomDrawer").classList.contains("hidden")) return;
     fetchStudent().catch(() => {});
   }, 60000);
 }
@@ -2085,7 +2094,7 @@ function startStudentTimer() { // รีเฟรชข้อมูลอัต�
   if (!sv || Date.now() - (sv.last || 0) > IDLE_MS) { clearSess(); return; }
   lastActive = Date.now();
   if (sv.r === "s" && sv.u && sv.u.token) {
-    currentUser = sv.u; stData = null; stRoom = sv.room || ""; stTab = sv.tab || "home"; stLoading = true; stJoinMode = false;
+    currentUser = sv.u; stData = null; stRoom = sv.room || ""; stTab = (!sv.tab || sv.tab === "rooms" || sv.tab === "home" && !sv.room) ? "me" : sv.tab; stLoading = true; stJoinMode = false;
     resetNav("studentDashboard", stTab);
     startStudentTimer();
     fetchStudent().catch((e) => toast(e.message)).finally(() => { stLoading = false; if (currentUser) renderStudent(); });
