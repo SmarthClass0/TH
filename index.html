@@ -2182,7 +2182,7 @@ function idleCheck() {
   if (currentUser) studentLogout();
 }
 setInterval(idleCheck, 15000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) idleCheck(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) return; idleCheck(); if (currentUser && Date.now() - lastStudentHit > ST_STALE_MS) stRefreshIfIdle(); });
 
 async function heartbeat() {
   if (Date.now() - lastActive > IDLE_MS) return;
@@ -2199,12 +2199,16 @@ async function heartbeat() {
 }
 setInterval(heartbeat, PING_MS);
 
-function startStudentTimer() { // รีเฟรชข้อมูลอัตโนมัติทุก 60 วินาที (เหมือนตอนเข้าสู่ระบบ)
+// รีเฟรชข้อมูลนักเรียนอัตโนมัติ: ไม่ทำตอนซ่อนแท็บ / อยู่หน้าบัญชี / ยังไม่ได้เลือกห้อง
+// ช่วงห่าง ~2.5-3 นาที (สุ่มต่อเครื่องเล็กน้อย ไม่ให้ทุกเครื่องยิงพร้อมกัน) และรีเฟรชทันทีเมื่อกลับมาที่แท็บถ้าข้อมูลเก่ากว่า 1 นาที
+const ST_REFRESH_MS = 150000 + Math.floor(Math.random() * 30000), ST_STALE_MS = 60000;
+function stRefreshIfIdle() {
+  if (!currentUser || !stData || document.hidden || stFetching || ST_ACCT.includes(stTab) || stData.noRoom || stData.needClass || $("studentDashboard").classList.contains("hidden")) return;
+  fetchStudent().catch(() => {});
+}
+function startStudentTimer() {
   clearInterval(stTimer);
-  stTimer = setInterval(() => {
-    if (!currentUser || !stData || document.hidden || stFetching || ST_ACCT.includes(stTab) || stData.noRoom || stData.needClass || $("studentDashboard").classList.contains("hidden")) return;
-    fetchStudent().catch(() => {});
-  }, 60000);
+  stTimer = setInterval(stRefreshIfIdle, ST_REFRESH_MS);
 }
 
 (function restoreSession() {
