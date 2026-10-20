@@ -14,7 +14,8 @@ tailwind.config = { theme: { extend: { colors: { indigo: {
   50:"#fdf2f4",100:"#fbe3e7",200:"#f4c4cd",300:"#e898a6",400:"#c4566a",500:"#a42a3f",
   600:"#8a2033",700:"#6b1625",800:"#560f1e",900:"#43101a" } } } } };
 </script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"></noscript>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -2157,7 +2158,7 @@ function adminLogout() {
 
 /* ---------- เซสชัน: กด F5 ไม่หลุด / หลุดเมื่อไม่ได้ใช้งาน 10 นาที / ส่งสถานะออนไลน์ ----------
  * เก็บใน sessionStorage (ปิดแท็บ = หลุดทันที เหมาะกับคอมโรงเรียน) ไม่เก็บรหัสผ่าน */
-const IDLE_MS = 10 * 60 * 1000, PING_MS = 90 * 1000, SESS_KEY = "cls_sess";
+const IDLE_MS = 10 * 60 * 1000, PING_MS = 150 * 1000, SESS_KEY = "cls_sess";
 let lastActive = Date.now();
 let lastSessStr = "";
 function clearSess() { lastSessStr = ""; try { sessionStorage.removeItem(SESS_KEY); } catch (_) {} }
