@@ -126,6 +126,7 @@ body.side-open{overflow:hidden}
  .rt td input:not([type=checkbox]),.rt td select{width:100%!important;min-width:0!important}
  .st-pin{position:static;box-shadow:none;background:transparent}
 }
+.cat-off{display:none!important}
 /* กลุ่มเมนูพับได้ (ฝั่งครู) */
 .sb-ghead{display:flex;align-items:center;gap:.8rem;width:100%;min-height:50px;padding:.7rem 1.1rem;font-size:.95rem;font-weight:600;color:#43101a;background:#fff;border-bottom:1px solid #f0f1f3;text-align:left}
 .sb-ghead>i:first-child{width:1.3rem;text-align:center;color:#8a2033}
@@ -1459,7 +1460,42 @@ function renderAdmin() {
   $("adminRoom").innerHTML = '<option value="">ดูทั้งหมดในวิชานี้</option>' + filterOpts(adminRoom);
   $("adminPanel").innerHTML = safeView(() => AVIEWS[adminTab]());
   labelTables($("adminPanel"));
+  try { applyScoreCat(); } catch (e) { console.error(e); }
   try { if (adminTab === "criteria") critPreview(); if (adminTab === "assign") renderAsgFiles(); } catch (e) { console.error(e); }
+}
+
+// ===== เลือกหมวดในหน้ากรอกคะแนน (ซ่อน/แสดงคอลัมน์ด้วย CSS ไม่ render ใหม่ จึงไม่ทำให้คะแนนที่พิมพ์ค้างไว้หาย) =====
+let scoreCat = "ทั้งหมด";
+const EXAM_LABEL = "สอบ";
+function scoreCatList() { // หมวดที่มีงานอยู่จริงในห้องนี้ (เรียงตามหมวดมาตรฐานก่อน) + สอบ
+  const as = adminData.assignments || [], ex = adminData.exams || [], have = [...new Set(as.map((a) => a.cat))];
+  const list = ASSIGN_CATS.filter((c) => have.includes(c)).concat(have.filter((c) => !ASSIGN_CATS.includes(c)));
+  if (ex.length) list.push(EXAM_LABEL);
+  return list;
+}
+function scoreCatBar() {
+  const list = scoreCatList(), as = adminData.assignments || [], ex = adminData.exams || [];
+  if (scoreCat !== "ทั้งหมด" && !list.includes(scoreCat)) scoreCat = "ทั้งหมด";
+  const n = (c) => (c === EXAM_LABEL ? ex.length : as.filter((a) => a.cat === c).length);
+  const pill = (c, label, cnt) => `<button type="button" data-sc="${esc(c)}" onclick="setScoreCat(this.dataset.sc)" class="sc-pill px-3 py-1.5 rounded-full border text-sm whitespace-nowrap">${esc(label)} <span class="text-[11px] opacity-70">${cnt}</span></button>`;
+  return `<div class="bg-white border border-slate-200 rounded-lg shadow-sm px-3 py-3"><div class="text-xs text-slate-600 mb-2"><i class="fa-solid fa-layer-group text-indigo-700 mr-1"></i>เลือกหมวดที่จะกรอกคะแนน (เลือกแล้วจะแสดงเฉพาะงานของหมวดนั้น · คะแนนที่พิมพ์ค้างไว้ในหมวดอื่นไม่หาย)</div>
+    <div class="flex flex-wrap gap-2">${pill("ทั้งหมด", "ทั้งหมด", as.length + ex.length)}${list.map((c) => pill(c, c, n(c))).join("")}</div><div id="scoreCatNote" class="text-xs text-slate-500 mt-2"></div></div>`;
+}
+function setScoreCat(c) { scoreCat = c || "ทั้งหมด"; applyScoreCat(); }
+function applyScoreCat() {
+  const root = $("adminPanel"); if (!root || adminTab !== "scores") return;
+  const all = scoreCat === "ทั้งหมด", isExam = scoreCat === EXAM_LABEL;
+  root.querySelectorAll("[data-cat]").forEach((el) => el.classList.toggle("cat-off", !all && el.dataset.cat !== scoreCat));
+  const wb = $("workBox"), eb = $("examBox");
+  if (wb) wb.classList.toggle("cat-off", isExam);
+  if (eb) eb.classList.toggle("cat-off", !all && !isExam);
+  root.querySelectorAll(".sc-pill").forEach((b) => {
+    const on = b.dataset.sc === scoreCat;
+    b.classList.toggle("bg-indigo-700", on); b.classList.toggle("text-white", on); b.classList.toggle("border-indigo-700", on);
+    b.classList.toggle("bg-white", !on); b.classList.toggle("text-slate-700", !on); b.classList.toggle("border-slate-300", !on);
+  });
+  const note = $("scoreCatNote");
+  if (note) note.textContent = all ? "กำลังแสดงทุกหมวด" : isExam ? "กำลังกรอกเฉพาะ: สอบ" : "กำลังกรอกเฉพาะหมวด: " + scoreCat + " (" + (adminData.assignments || []).filter((a) => a.cat === scoreCat).length + " งาน)";
 }
 
 const AVIEWS = {
@@ -1581,14 +1617,14 @@ const AVIEWS = {
     const as = adminData.assignments, ex = adminData.exams || [];
     if (!as.length && !ex.length) return noAssign();
     const rows = studs(true).map((s) => `<tr data-q="${rowQ(s)}">${td(esc(s.no), "rt-sub")}${td(esc(s.studentId), "rt-sub")}${td(esc(s.name), "whitespace-nowrap rt-name")}${as.map((a) => {
-      if (!matchT(a.target, s.class)) return `<td class="px-2 py-1 text-center text-slate-300">-</td>`;
+      if (!matchT(a.target, s.class)) return `<td data-cat="${esc(a.cat)}" class="px-2 py-1 text-center text-slate-300">-</td>`;
       const r = recOf(s.studentId, a.id), v = r && r.score !== null ? r.score : "";
-      return `<td class="px-2 py-1"><input type="number" step="0.5" min="0" max="${a.max}" value="${v}" data-orig="${v}" data-sid="${esc(s.studentId)}" data-aid="${esc(a.id)}" class="score-in w-20 px-2 py-1 border rounded text-center"></td>`;
+      return `<td data-cat="${esc(a.cat)}" class="px-2 py-1"><input type="number" step="0.5" min="0" max="${a.max}" value="${v}" data-orig="${v}" data-sid="${esc(s.studentId)}" data-aid="${esc(a.id)}" class="score-in w-20 px-2 py-1 border rounded text-center"></td>`;
     }).join("")}${td(fmt(sumOf(s.studentId).total), "font-semibold")}${td(fmt(sumOf(s.studentId).remaining))}</tr>`).join("");
     const workBox = !as.length ? "" : sBox("คะแนนรายบุคคล (ใบงาน / แบบทดสอบ ฯลฯ)", "fa-pen-to-square", `<div class="flex flex-wrap items-center gap-2 mb-2">${searchBox()}<button type="button" onclick="saveScores(this)" class="${btnP}"><span><i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกคะแนน</span></button></div>
       <p class="text-xs text-slate-500 mb-3">กรอกคะแนนหลายงานพร้อมกัน · "รวม" คือคะแนนที่ได้ในงานที่ตรวจแล้ว · "คงเหลือ" คือคะแนนเต็มของงานที่ยังไม่มีคะแนน</p>
-      ${table(th("เลขที่", "รหัส", "ชื่อ-นามสกุล", ...as.map((a) => `${esc(a.name)}<br><span class="font-normal">${esc(a.cat)} /${a.max}</span>`), "รวม", "คงเหลือ"), rows, as.length + 5)}`);
-    return `<div class="space-y-4">${workBox}${AVIEWS.examScores(!as.length)}</div>`;
+      ${table(`<tr>${["เลขที่", "รหัส", "ชื่อ-นามสกุล"].map((x) => `<th class="px-3 py-2 text-left whitespace-nowrap">${x}</th>`).join("")}${as.map((a) => `<th data-cat="${esc(a.cat)}" class="px-3 py-2 text-left whitespace-nowrap">${esc(a.name)}<br><span class="font-normal">${esc(a.cat)} /${a.max}</span></th>`).join("")}${["รวม", "คงเหลือ"].map((x) => `<th class="px-3 py-2 text-left whitespace-nowrap">${x}</th>`).join("")}</tr>`, rows, as.length + 5)}`);
+    return `<div class="space-y-4">${scoreCatBar()}<div id="workBox">${workBox}</div><div id="examBox">${AVIEWS.examScores(!as.length)}</div></div>`;
   },
 
   // กรอกคะแนนสอบ (รายการสอบตั้งที่เมนู เกณฑ์คะแนน / การสอบ) แสดงต่อท้ายหน้าคะแนนรายบุคคล
