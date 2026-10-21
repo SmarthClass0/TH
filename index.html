@@ -1056,9 +1056,9 @@ const ST_VIEWS = {
     return `<div class="space-y-4">
      ${sBox("สรุปผลการเรียน", "fa-chart-simple", `<div class="flex flex-wrap items-center justify-between gap-5">
        <div class="min-w-0 flex-1 basis-64"><div class="text-sm text-slate-500">คะแนนรวม (เฉพาะงานที่ตรวจแล้ว)</div>
-        <div class="text-4xl font-bold text-slate-900 mt-1">${s.max ? fmt(s.total) : "-"} <span class="text-lg font-medium text-slate-500">/ ${s.max ? fmt(s.max) : "-"}</span></div>
-        <div class="mt-3">${sBar(pct)}</div>
-        <div class="text-sm text-slate-600 mt-2">${s.pct == null ? "ยังไม่มีคะแนน" : "คิดเป็นร้อยละ " + fmt(s.pct)}${s.classRank ? " · อันดับที่ " + s.classRank + " จาก " + s.classSize + " คนในห้อง" : ""}</div>
+        <div class="text-4xl font-bold text-slate-900 mt-1">${s.max ? fmt(s.total) : "-"} <span class="text-lg font-medium text-slate-500">/ ${FULL_SCORE_UI}</span></div>
+        <div class="mt-3">${sBar(s.max ? (Number(s.total) || 0) / FULL_SCORE_UI * 100 : 0)}</div>
+        <div class="text-sm text-slate-600 mt-2">${s.pct == null ? "ยังไม่มีคะแนน" : "ร้อยละของงานที่ตรวจแล้ว " + fmt(s.pct)}${s.classRank ? " · อันดับที่ " + s.classRank + " จาก " + s.classSize + " คนในห้อง" : ""}</div>
         ${!s.final && s.courseMax ? `<div class="text-xs text-slate-500 mt-1">ตรวจแล้ว ${fmt(s.max)} จากคะแนนเต็มรวม ${fmt(s.courseMax)} คะแนน</div>` : ""}</div>
        ${gradeBox(s)}</div>`)}
      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
