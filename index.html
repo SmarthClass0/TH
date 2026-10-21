@@ -436,7 +436,7 @@ const sbGroups = () => ADMIN_GROUPS.map((g) => {
   const items = g.ids.map((id) => TABS.find((x) => x[0] === id)).filter(Boolean).map(([id, label, icon]) => sbItem({ label, icon, js: `setAdminTab('${id}')`, on: id === adminTab, cls: "sub" })).join("");
   return `<button type="button" onclick="toggleGrp('${g.key}')" aria-expanded="${open}" class="sb-ghead ${open ? "open" : ""}"><i class="fa-solid ${g.icon}"></i><span class="flex-1">${g.label}</span><i class="fa-solid fa-chevron-down sb-chev"></i></button><div class="sb-gbody ${open ? "" : "hidden"}">${items}</div>`;
 }).join("");
-const ADMIN_GLOBAL_TITLES = { rooms: "ห้องเรียนของฉัน", profile: "โปรไฟล์ครู", resets: "คำขอรีเซ็ตรหัสผ่าน", admins: "จัดการแอดมิน" };
+const ADMIN_GLOBAL_TITLES = { rooms: "ห้องเรียนของฉัน", profile: "โปรไฟล์ครู", resets: "คำขอรีเซ็ตรหัสผ่าน" };
 
 function renderChrome() { try { renderChromeCore(); } catch (e) { console.error(e); } }
 function renderChromeCore() {
@@ -472,7 +472,7 @@ function renderChromeCore() {
     const inRoom = !!curRoom && !GLOBAL_TABS.includes(adminTab);
     const rm = adminData ? (adminData.rooms || []).find((x) => x.id === curRoom) : null;
     if (inRoom) {
-      menu += sbItem({ label: adminData && adminData.viewingOwner ? "กลับหน้าจัดการแอดมิน" : "ห้องเรียนทั้งหมด", icon: "fa-arrow-left", js: "leaveRoom()" });
+      menu += sbItem({ label: "ห้องเรียนทั้งหมด", icon: "fa-arrow-left", js: "leaveRoom()" });
       if (rm) menu += `<div class="sb-room"><div class="font-bold truncate">${esc(rm.subject || rm.name)}</div><div class="text-xs text-stone-500 truncate">${rm.subject ? "ห้อง " + esc(rm.name) + " · " : ""}รหัสห้อง <b>${esc(rm.code)}</b></div></div>`;
       menu += sbSec("จัดการวิชานี้") + sbGroups();
       title = (TABS.find((x) => x[0] === adminTab) || TABS[0])[1];
@@ -484,8 +484,7 @@ function renderChromeCore() {
     const pr = adminData ? pendReset() : 0;
     menu += sbSec("บัญชีและระบบ")
       + sbItem({ label: "โปรไฟล์ครู", icon: "fa-id-badge", js: "setAdminTab('profile')", on: adminTab === "profile" })
-      + sbItem({ label: "คำขอรีเซ็ตรหัสผ่าน", icon: "fa-key", js: "setAdminTab('resets')", on: adminTab === "resets", badge: pr })
-      + (adminRole === "main" ? sbItem({ label: "จัดการแอดมิน", icon: "fa-user-shield", js: "setAdminTab('admins')", on: adminTab === "admins" }) : "");
+      + sbItem({ label: "คำขอรีเซ็ตรหัสผ่าน", icon: "fa-key", js: "setAdminTab('resets')", on: adminTab === "resets", badge: pr });
     foot = `<button type="button" onclick="refreshAdmin(this)" class="sb-item"><i class="fa-solid fa-rotate"></i><span class="flex-1">รีเฟรชข้อมูล</span></button>`
       + sbItem({ label: "ออกจากระบบ", icon: "fa-right-from-bracket", js: "adminLogout()", cls: "out" });
   }
@@ -1250,7 +1249,7 @@ const CATS = ["ใบงาน", "ใบสั่งงาน", "ใบประ
 const ASSIGN_CATS = ["ใบงาน", "ใบสั่งงาน", "ใบประลอง", "แบบทดสอบ", "แบบฝึกหัด"]; // หมวดงานที่ครูเลือกใช้ได้ (ติ๊กใช้/ไม่ใช้ที่เมนูเกณฑ์คะแนน) · การสอบตั้งที่เมนูเกณฑ์คะแนนเช่นกัน
 const STU_STATUS = ["ปกติ", "พักการเรียน", "ย้ายออก"];
 const PERIODS = ["ทั้งวัน"].concat([1, 2, 3, 4, 5, 6, 7, 8].map((n) => "คาบ " + n));
-const GLOBAL_TABS = ["rooms", "profile", "resets", "admins"]; // หน้านอกห้อง: รายการห้อง / โปรไฟล์ครู / จัดการแอดมิน
+const GLOBAL_TABS = ["rooms", "profile", "resets"]; // หน้านอกห้อง: รายการห้อง / โปรไฟล์ / คำขอรีเซ็ต
 const TABS = [["home", "หน้าหลัก", "fa-house"], ["students", "รายชื่อนักเรียน", "fa-users"], ["submit", "เช็คส่งงาน", "fa-clipboard-check"],
   ["assign", "รายละเอียดงาน", "fa-book"], ["criteria", "เกณฑ์คะแนน / การสอบ", "fa-scale-balanced"], ["scores", "คะแนนรายบุคคล", "fa-pen-to-square"], ["attend", "คะแนนเช็คชื่อ", "fa-calendar-check"],
   ["rank", "จัดอันดับ", "fa-ranking-star"], ["summary", "สรุปผลการเรียน", "fa-file-lines"], ["course", "ข้อมูลวิชา", "fa-book"], ["news", "ประกาศ", "fa-bullhorn"], ["settings", "ตั้งค่าห้อง / รหัสเชิญ", "fa-gear"]];
@@ -1379,7 +1378,7 @@ function adminResetsHtml(a) { // คำขอรีเซ็ตรหัสข�
   return `<div class="mb-3 border border-amber-200 bg-amber-50 rounded-xl p-3"><div class="text-sm font-semibold text-amber-800 mb-1"><i class="fa-solid fa-key mr-1"></i>คำขอรีเซ็ตรหัสของนักเรียนครู ${esc(a.name || a.user)}</div>${l.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 py-1 border-t border-amber-100"><span class="text-sm"><b>${esc(r.sid)}</b> ${esc(r.name)} ${badge(r.status, RS_CLS)} <span class="text-xs text-slate-500">${dt(r.time)}</span></span><span class="whitespace-nowrap"><button type="button" onclick="issueReset('${esc(r.email)}')" class="${btnP}">${r.status === "รอครู" ? "ออกโค้ด" : "ออกโค้ดใหม่"}</button> <button type="button" onclick="rejectReset('${esc(r.email)}')" class="text-red-600 text-sm ml-2">ปฏิเสธ</button></span></div>`).join("")}</div>`;
 }
 function leaveRoom() {
-  const back = adminData && adminData.viewingOwner ? "admins" : "rooms"; // ดูห้องของครูคนอื่นอยู่ -> กลับหน้าจัดการแอดมิน
+  const back = "rooms";
   curRoom = ""; adminRoom = ""; adminAssign = ""; asgFiles = [];
   showView("adminDashboard", back);
   loadAdminData().catch((e) => toast(e.message));
@@ -1435,32 +1434,7 @@ function showQr(code) {
   if (window.QRCode) new QRCode($("qrCanvas"), { text: link, width: 220, height: 220 }); else $("qrCanvas").textContent = "โหลดตัวสร้าง QR ไม่ได้ ใช้รหัสหรือลิงก์แทน";
   box.scrollIntoView({ behavior: "smooth", block: "center" });
 }
-function createAdminAcc(btn) {
-  run(btn, "กำลังสร้าง...", async () => {
-    await adminCall({ action: "adminCreateAdmin", username: $("adUser").value.trim(), name: $("adName").value.trim(), password: $("adPw").value });
-    await loadAdminData();
-    toast("สร้างบัญชีแอดมินแล้ว แจ้งชื่อผู้ใช้และรหัสผ่านให้เขา", "success");
-    return true;
-  });
-}
-const toggleAdmin = (u) => adminDo("", { action: "adminUpdateAdmin", username: u, op: "toggle" }, "เปลี่ยนสถานะแล้ว");
-async function resetAdminPw(u) {
-  if (adminBusy || !confirm("รีเซ็ตรหัสผ่านของแอดมิน " + u + " เป็นรหัสชั่วคราวใช่ไหม?")) return;
-  adminBusy = true;
-  try { const r = await adminCall({ action: "adminUpdateAdmin", username: u, op: "resetpw" }); alert("รหัสผ่านชั่วคราวของ " + u + " คือ\n\n" + r.password + "\n\nแจ้งเขาแล้วให้เข้าระบบและเปลี่ยนรหัสที่แท็บ โปรไฟล์ครู"); }
-  catch (e) { toast(e.message); } finally { adminBusy = false; }
-}
-const adminPwBlock = () => adminRole === "main"
-  ? sBox("รหัสผ่านผู้ดูแลหลัก", "fa-key", '<p class="text-sm text-slate-600">ตั้งที่ Apps Script > Project Settings > Script Properties (ADMIN_USER / ADMIN_PASS)</p>')
-  : sBox("เปลี่ยนรหัสผ่านแอดมิน", "fa-key", `<div class="space-y-2 max-w-md"><input id="apOld" type="password" placeholder="รหัสผ่านเดิม" class="${inC}"><input id="apNew" type="password" placeholder="รหัสผ่านใหม่ (8 ตัวขึ้นไป ขึ้นต้น A-Z มี a-z และตัวเลข)" class="${inC}"><button type="button" onclick="changeAdminPw(this)" class="${btnP}"><span>เปลี่ยนรหัสผ่าน</span></button></div>`);
-function changeAdminPw(btn) {
-  run(btn, "กำลังบันทึก...", async () => {
-    await adminCall({ action: "adminChangePassword", oldPassword: $("apOld").value, newPassword: $("apNew").value });
-    $("apOld").value = ""; $("apNew").value = "";
-    toast("เปลี่ยนรหัสผ่านแล้ว", "success");
-    return true;
-  });
-}
+const adminPwBlock = () => sBox("รหัสผ่านแอดมิน", "fa-key", '<p class="text-sm text-slate-600">ระบบมีแอดมินคนเดียว เปลี่ยนชื่อผู้ใช้/รหัสผ่านได้ที่ Apps Script > Code.gs > ADMIN_FIXED แล้ว Deploy เวอร์ชันใหม่</p>');
 function renderAsgFiles() {
   const el = $("asgFiles"); if (!el) return;
   el.innerHTML = asgFiles.length ? asgFiles.map((f, i) => `<div class="flex items-center gap-2 text-sm bg-white border rounded-lg px-2 py-1"><i class="fa-solid ${f.t === "link" ? "fa-link" : "fa-file"} text-indigo-600"></i><span class="truncate flex-1">${esc(f.n)}</span><button type="button" onclick="asgFiles.splice(${i},1);renderAsgFiles()" class="text-red-600"><i class="fa-solid fa-xmark"></i></button></div>`).join("") : '<div class="text-xs text-slate-400">ยังไม่มีไฟล์แนบ</div>';
@@ -1521,7 +1495,7 @@ const setAdminTab = (id) => showView("adminDashboard", id);
 function renderAdmin() {
   if (!adminData) return;
   if (!curRoom && !GLOBAL_TABS.includes(adminTab)) adminTab = "rooms";
-  if (adminTab === "admins" && adminRole !== "main") adminTab = "rooms";
+  if (adminTab === "admins") adminTab = "rooms"; // เซสชันเก่าที่ค้างหน้าจัดการแอดมิน
   const inRoom = !!curRoom && !GLOBAL_TABS.includes(adminTab);
   if (!adminData.assignments.find((a) => a.id === adminAssign)) adminAssign = adminData.assignments.length ? adminData.assignments[0].id : "";
   const rm = (adminData.rooms || []).find((x) => x.id === curRoom);
@@ -1575,14 +1549,6 @@ const AVIEWS = {
       <section class="bg-white border border-red-200 rounded-lg shadow-sm"><header class="px-4 py-3 border-b border-red-200 bg-red-50 rounded-t-lg"><h3 class="font-bold text-red-700 text-[15px]"><i class="fa-solid fa-trash mr-2"></i>ลบห้องเรียน</h3></header>
        <div class="p-4 space-y-3"><p class="text-xs text-red-800">ลบงาน ไฟล์แนบ คะแนน เช็คชื่อ ประกาศ และรายชื่อนักเรียนในห้องนี้ถาวร ย้อนกลับไม่ได้ (บัญชีนักเรียนไม่ถูกลบ)</p>
         <button type="button" onclick="deleteRoom('${esc(r.id)}')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-trash mr-1"></i>ลบห้องนี้ถาวร</button></div></section></div>`;
-  },
-
-  admins() {
-    const rows = (adminData.admins || []).map((a) => `<tr>${td("<b>" + esc(a.user) + "</b>", "rt-name")}${td(esc(a.name))}${td(a.active ? '<span class="text-emerald-600">ใช้งานได้</span>' : '<span class="text-red-600">ปิดอยู่</span>')}<td class="px-3 py-2 whitespace-nowrap"><button type="button" onclick="toggleAdmin('${esc(a.user)}')" class="text-amber-700 text-sm mr-3 underline">${a.active ? "ปิดใช้งาน" : "เปิดใช้งาน"}</button><button type="button" onclick="resetAdminPw('${esc(a.user)}')" class="text-sky-600 text-sm mr-3 underline">รีเซ็ตรหัส</button><button type="button" onclick="toggleAdminRooms('${esc(a.user)}')" class="text-indigo-700 text-sm underline"><i class="fa-solid ${adminOpen[a.user] ? "fa-chevron-up" : "fa-chevron-down"} mr-1"></i>ห้องเรียน (${(a.rooms || []).length})${pendN(a) ? `<span class="ml-1 bg-red-600 text-white text-[10px] rounded-full px-1.5 py-0.5 no-underline inline-block">ขอรีเซ็ต ${pendN(a)}</span>` : ""}</button></td></tr>${adminOpen[a.user] ? `<tr><td colspan="4" class="px-3 py-2 bg-slate-50">${adminResetsHtml(a)}${(a.rooms || []).length ? `<div class="grid md:grid-cols-2 gap-2">${a.rooms.map((r) => `<div class="border rounded-xl p-3 bg-white flex flex-col gap-1"><div class="font-semibold text-slate-800">${esc(r.name)}${r.archived ? ' <span class="text-xs text-slate-500">(ซ่อนอยู่)</span>' : ""}</div>${r.desc ? `<div class="text-xs text-slate-600">สอน: ${esc(r.desc)}</div>` : ""}<div class="text-xs text-slate-500"><i class="fa-solid fa-users mr-1"></i>${r.count || 0} คน · รหัส <b class="tracking-widest">${esc(r.code)}</b></div><button type="button" onclick="enterRoom('${esc(r.id)}')" class="${btnP} mt-1">เข้าไปดูห้องนี้ <i class="fa-solid fa-arrow-right ml-1"></i></button></div>`).join("")}</div>` : '<span class="text-sm text-slate-400">แอดมินคนนี้ยังไม่ได้สร้างห้องเรียน</span>'}</td></tr>` : ""}`).join("");
-    return `<div class="space-y-4 max-w-4xl">
-      ${sBox("เพิ่มแอดมิน", "fa-user-plus", `<p class="text-xs text-slate-500 mb-3">นักเรียนสมัครเป็นแอดมินเองไม่ได้ ต้องให้ผู้ดูแลหลักสร้างบัญชีให้ที่นี่ · แอดมินที่เพิ่มสร้างห้องและทำได้ทุกอย่างเหมือนผู้ดูแลหลัก ยกเว้นหน้านี้ · ครูแต่ละคนเห็นเฉพาะห้องที่ตัวเองสร้าง มีแต่ผู้ดูแลหลักที่กดปุ่ม "ห้องเรียน" ของแอดมินแต่ละคนเพื่อเข้าไปดูห้องของเขาได้</p>
-       <div class="grid md:grid-cols-4 gap-3"><div><label class="text-xs font-semibold text-slate-600">ชื่อผู้ใช้ (อังกฤษ/ตัวเลข)</label><input id="adUser" maxlength="20" class="${inC}"></div><div><label class="text-xs font-semibold text-slate-600">ชื่อที่แสดง</label><input id="adName" maxlength="60" class="${inC}"></div><div><label class="text-xs font-semibold text-slate-600">รหัสผ่านเริ่มต้น</label><input id="adPw" type="text" class="${inC}" placeholder="เช่น Teacher123"></div><div class="flex items-end"><button type="button" onclick="createAdminAcc(this)" class="${btnP} w-full"><span>สร้างแอดมิน</span></button></div></div>`)}
-      ${sBox("รายชื่อแอดมิน", "fa-user-shield", table(th("ชื่อผู้ใช้", "ชื่อ", "สถานะ", "จัดการ"), rows, 4))}</div>`;
   },
 
   home() {
