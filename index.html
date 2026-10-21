@@ -273,13 +273,8 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEUcm3PNWFGI_3tldA1
    <div class="space-y-3">
     <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
      <div class="font-semibold text-stone-800 text-sm"><span class="step-no mr-1">1</span>ส่งคำขอถึงครู</div>
-     <input type="email" id="fgEmail" autocomplete="email" oninput="scheduleResetTeachers()" placeholder="อีเมลที่สมัครไว้" class="w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-     <input type="text" id="fgSid" inputmode="numeric" oninput="scheduleResetTeachers()" placeholder="รหัสนักเรียน" class="w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-     <div id="fgTeacherBox" class="hidden space-y-1">
-      <label class="text-xs font-semibold text-stone-700"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-700"></i>ครูที่ต้องการส่งคำขอถึง <span class="text-red-500">*</span></label>
-      <select id="fgTeacher" class="w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"></select>
-     </div>
-     <p id="fgTeacherHint" class="hidden text-xs text-stone-500"></p>
+     <input type="email" id="fgEmail" autocomplete="email" placeholder="อีเมลที่สมัครไว้" class="w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+     <input type="text" id="fgSid" inputmode="numeric" placeholder="รหัสนักเรียน" class="w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
      <button type="button" id="btnReqReset" onclick="handleRequestReset()" class="w-full bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition"><span>ส่งคำขอให้ครู</span></button>
      <p id="fgSent" class="hidden text-xs text-emerald-700 bg-emerald-50 rounded-lg p-2">ส่งคำขอแล้ว ✓ ให้แจ้งครูเพื่อขอ <b>โค้ด 6 หลัก</b> แล้วกรอกในขั้นตอนที่ 2</p>
      <p id="fgNoAcc" class="hidden text-xs text-red-700 bg-red-50 rounded-lg p-2">ไม่พบบัญชีนี้ในระบบ <button type="button" onclick="showStudentRegister()" class="text-indigo-700 font-bold underline">กรุณาสมัครบัญชี</button></p>
@@ -468,7 +463,7 @@ function renderChromeCore() {
     foot = sbItem({ label: "ออกจากระบบ", icon: "fa-right-from-bracket", js: "studentLogout()", cls: "out" });
   } else {
     const c = (adminData && adminData.profile) || {};
-    who = { a: c.avatar, n: c.nick || c.name || "ครู", s: adminRole === "main" ? "ผู้ดูแลหลัก" : "ครูผู้สอน" };
+    who = { a: c.avatar, n: c.nick || c.name || "ครู", s: "ผู้ดูแลระบบ" };
     const inRoom = !!curRoom && !GLOBAL_TABS.includes(adminTab);
     const rm = adminData ? (adminData.rooms || []).find((x) => x.id === curRoom) : null;
     if (inRoom) {
@@ -733,48 +728,11 @@ function clearCooldown() {
 }
 
 /* ---------- ลืมรหัสผ่าน (ขอโค้ดจากครู) ---------- */
-/* เลือกครูที่ต้องการส่งคำขอถึง: แสดงเฉพาะครูที่นักเรียนคนนี้เรียนด้วย (ห้องที่นักเรียนอยู่) */
-let fgTeachers = { key: "", list: [], ok: false }, fgTimer = null;
-const fgKey = () => String($("fgEmail").value).normalize("NFKC").replace(/[^\x21-\x7E]/g, "").toLowerCase() + "|" + String($("fgSid").value).normalize("NFKC").replace(/\s+/g, "");
-function scheduleResetTeachers() {
-  clearTimeout(fgTimer);
-  const email = String($("fgEmail").value).trim(), sid = String($("fgSid").value).trim();
-  if (fgTeachers.key !== fgKey()) { fgTeachers = { key: "", list: [], ok: false }; $("fgTeacherBox").classList.add("hidden"); $("fgTeacherHint").classList.add("hidden"); }
-  if (!/^\S+@\S+\.\S+$/.test(email) || !sid) return;
-  fgTimer = setTimeout(() => loadResetTeachers().catch(() => {}), 600);
-}
-async function loadResetTeachers() {
-  const key = fgKey(), email = key.split("|")[0], studentId = key.split("|")[1];
-  if (!email || !studentId) return false;
-  if (fgTeachers.key === key && fgTeachers.ok) return true;
-  const hint = $("fgTeacherHint");
-  hint.textContent = "กำลังค้นหาครูของคุณ..."; hint.classList.remove("hidden");
-  const r = await postData({ action: "resetTeachers", email, studentId });
-  if (key !== fgKey()) return false; // ผู้ใช้แก้ช่องไปแล้ว ทิ้งผลเก่า
-  $("fgNoAcc").classList.toggle("hidden", r.code !== "NO_ACCOUNT");
-  if (r.status !== "success") { fgTeachers = { key: "", list: [], ok: false }; $("fgTeacherBox").classList.add("hidden"); hint.textContent = r.message || "ตรวจสอบข้อมูลไม่สำเร็จ"; hint.classList.remove("hidden"); return false; }
-  const list = r.teachers || [], sel = $("fgTeacher");
-  fgTeachers = { key, list, ok: true };
-  if (list.length) {
-    sel.innerHTML = (list.length > 1 ? '<option value="">-- เลือกครู --</option>' : "") + list.map((t) => `<option value="${esc(t.roomId)}">${esc(t.label)}</option>`).join("");
-    $("fgTeacherBox").classList.remove("hidden");
-    hint.textContent = "เลือกครูที่คุณต้องการขอโค้ด (แสดงเฉพาะครูที่คุณเรียนด้วย)";
-    hint.classList.toggle("hidden", list.length === 1);
-  } else {
-    $("fgTeacherBox").classList.add("hidden");
-    hint.textContent = "ยังไม่พบห้องเรียนของคุณ คำขอจะส่งถึงผู้ดูแลหลักของระบบ";
-    hint.classList.remove("hidden");
-  }
-  return true;
-}
 function handleRequestReset() {
   const email = cleanEmail($("fgEmail").value, "fgEmail"), studentId = $("fgSid").value.normalize("NFKC").replace(/\s+/g, "");
   if (!email || !studentId) return toast("กรุณากรอกอีเมลและรหัสนักเรียน");
   run($("btnReqReset"), "กำลังส่ง...", async () => {
-    if (!(await loadResetTeachers())) return false; // ตรวจบัญชีและดึงรายชื่อครูก่อน (ข้อความผิดพลาดแสดงอยู่ใต้ช่องกรอกแล้ว)
-    const roomId = fgTeachers.list.length ? $("fgTeacher").value : "";
-    if (fgTeachers.list.length && !roomId) { toast("กรุณาเลือกครูที่ต้องการส่งคำขอถึง"); return false; }
-    const r = await postData({ action: "requestReset", email, studentId, roomId });
+    const r = await postData({ action: "requestReset", email, studentId });
     if (r.status !== "success") { $("fgNoAcc").classList.toggle("hidden", r.code !== "NO_ACCOUNT"); toast(r.message); return false; }
     $("fgNoAcc").classList.add("hidden"); $("fgSent").classList.remove("hidden"); $("fgStep2").classList.remove("hidden");
     toast(r.message, "success");
@@ -1299,7 +1257,7 @@ const gradeNote = (c) => { const k = critOf(c); return "เกณฑ์เกร
 const pendReset = () => ((adminData && adminData.resets) || []).filter((r) => r.status === "รอครู").length;
 const RS_CLS = { "รอครู": "bg-amber-100 text-amber-700", "ออกโค้ดแล้ว": "bg-sky-100 text-sky-700", "เสร็จสิ้น": "bg-emerald-100 text-emerald-700", "ปฏิเสธ": "bg-slate-200 text-slate-600" };
 const FILTER_TABS = ["students", "submit", "scores", "attend", "rank", "summary"];
-let curRoom = "", adminRole = "", adminUser = "", asgFiles = [], adminOpen = {};
+let curRoom = "", asgFiles = [];
 let adminOnline = null;
 const onlineBadge = () => adminOnline == null ? "" : `<span title="นักเรียนที่ออนไลน์อยู่ตอนนี้ ${adminOnline} คน" class="text-[11px] text-slate-400 select-none"><span class="inline-block w-1.5 h-1.5 rounded-full ${adminOnline > 0 ? "bg-emerald-400" : "bg-slate-300"} mr-1 align-middle"></span>${adminOnline}</span>`;
 function setOnline(n) { adminOnline = n; const el = $("onlineSlot"); if (el) el.innerHTML = onlineBadge(); }
@@ -1368,14 +1326,6 @@ const noAssign = () => empty('ยังไม่มีงาน ไปเพิ�
 async function enterRoom(id, tab) {
   curRoom = id; adminRoom = ""; adminAssign = ""; asgFiles = [];
   try { await loadAdminData(); showView("adminDashboard", tab || "home"); } catch (e) { toast(e.message); }
-}
-function toggleAdminRooms(u) { adminOpen[u] = !adminOpen[u]; renderAdmin(); }
-const allResets = () => (adminData.resets || []).concat(...(adminData.admins || []).map((a) => a.resets || []));
-const pendN = (a) => (a.resets || []).filter((r) => r.status === "รอครู").length;
-function adminResetsHtml(a) { // คำขอรีเซ็ตรหัสของนักเรียนในห้องของครูคนนั้น (ผู้ดูแลหลักเห็นที่นี่)
-  const l = (a.resets || []).filter((r) => r.status === "รอครู" || r.status === "ออกโค้ดแล้ว").sort((x, y) => y.time - x.time);
-  if (!l.length) return "";
-  return `<div class="mb-3 border border-amber-200 bg-amber-50 rounded-xl p-3"><div class="text-sm font-semibold text-amber-800 mb-1"><i class="fa-solid fa-key mr-1"></i>คำขอรีเซ็ตรหัสของนักเรียนครู ${esc(a.name || a.user)}</div>${l.map((r) => `<div class="flex flex-wrap items-center justify-between gap-2 py-1 border-t border-amber-100"><span class="text-sm"><b>${esc(r.sid)}</b> ${esc(r.name)} ${badge(r.status, RS_CLS)} <span class="text-xs text-slate-500">${dt(r.time)}</span></span><span class="whitespace-nowrap"><button type="button" onclick="issueReset('${esc(r.email)}')" class="${btnP}">${r.status === "รอครู" ? "ออกโค้ด" : "ออกโค้ดใหม่"}</button> <button type="button" onclick="rejectReset('${esc(r.email)}')" class="text-red-600 text-sm ml-2">ปฏิเสธ</button></span></div>`).join("")}</div>`;
 }
 function leaveRoom() {
   const back = "rooms";
@@ -1494,14 +1444,12 @@ const setAdminTab = (id) => showView("adminDashboard", id);
 
 function renderAdmin() {
   if (!adminData) return;
-  if (!curRoom && !GLOBAL_TABS.includes(adminTab)) adminTab = "rooms";
-  if (adminTab === "admins") adminTab = "rooms"; // เซสชันเก่าที่ค้างหน้าจัดการแอดมิน
+  if (!AVIEWS[adminTab] || (!curRoom && !GLOBAL_TABS.includes(adminTab))) adminTab = curRoom ? "home" : "rooms";
   const inRoom = !!curRoom && !GLOBAL_TABS.includes(adminTab);
   if (!adminData.assignments.find((a) => a.id === adminAssign)) adminAssign = adminData.assignments.length ? adminData.assignments[0].id : "";
   const rm = (adminData.rooms || []).find((x) => x.id === curRoom);
   const notes = [];
   if (inRoom && rm) {
-    if (adminData.viewingOwner) notes.push(`<div class="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"><i class="fa-solid fa-eye mr-1"></i>ห้องของครู ${esc(adminData.viewingOwner)} · คุณกำลังเปิดดูในฐานะผู้ดูแลหลัก</div>`);
     if (!rm.desc) notes.push(`<button type="button" onclick="setAdminTab('settings')" class="w-full text-left text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i>ยังไม่ได้ระบุว่าสอนห้องอะไร — กดเพื่อกรอก</button>`);
     if (rm.archived) notes.push('<div class="text-sm text-slate-700 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2"><i class="fa-solid fa-eye-slash mr-1"></i>ห้องนี้ถูกซ่อนอยู่ นักเรียนมองไม่เห็น</div>');
   }
@@ -1520,7 +1468,7 @@ const AVIEWS = {
     const cards = rs.map((r) => `<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col"><div class="h-1 bg-gradient-to-r from-indigo-900 via-indigo-700 to-[#c9a227]"></div>
       <div class="p-4 flex-1 space-y-1"><div class="flex justify-between gap-2"><div class="min-w-0"><div class="font-bold text-slate-900 text-lg leading-snug break-words">${esc(r.subject || r.name)}</div>${r.subject ? `<div class="text-xs text-slate-500">ห้อง ${esc(r.name)}</div>` : ""}</div>${r.archived ? '<span class="text-xs bg-slate-200 rounded-full px-2 py-0.5 h-fit whitespace-nowrap">ซ่อนอยู่</span>' : ""}</div>
        ${r.desc ? `<div class="text-sm text-slate-600"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-600"></i>สอน: ${esc(r.desc)}</div>` : '<div class="text-xs text-amber-700">ยังไม่ได้ระบุว่าสอนห้องอะไร (กรอกที่ตั้งค่าห้อง)</div>'}
-       <div class="text-xs text-slate-500"><i class="fa-solid fa-users mr-1"></i>${r.count || 0} คน · รหัสห้อง <b class="tracking-widest text-slate-700">${esc(r.code)}</b>${r.owner !== adminUser ? " · ครู " + esc(r.owner) : ""}</div></div>
+       <div class="text-xs text-slate-500"><i class="fa-solid fa-users mr-1"></i>${r.count || 0} คน · รหัสห้อง <b class="tracking-widest text-slate-700">${esc(r.code)}</b></div></div>
       <div class="flex gap-2 p-3 pt-0"><button type="button" onclick="enterRoom('${esc(r.id)}')" class="${btnP} flex-1">เข้าจัดการห้องนี้ <i class="fa-solid fa-arrow-right ml-1"></i></button><button type="button" onclick="deleteRoom('${esc(r.id)}')" class="px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50" title="ลบห้องนี้ถาวร" aria-label="ลบห้อง ${esc(r.name)}"><i class="fa-solid fa-trash"></i></button></div></div>`).join("");
     return `<div class="space-y-4">
       ${rs.length ? "" : '<div class="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm"><b>ขั้นแรก:</b> สร้างห้องเรียนก่อน แล้วกดเข้าไปในห้องเพื่อจัดการนักเรียน งาน คะแนน และเช็คชื่อ</div>'}
@@ -1694,11 +1642,11 @@ const AVIEWS = {
       <div class="mb-1">${searchBox()}</div><p class="text-xs text-slate-500 mb-3">(นับเฉพาะงานที่ให้คะแนนแล้ว · เกรดจะแสดงเมื่อคะแนนเต็มรวมครบ 100 และตรวจครบทุกงาน)</p>${table(th("รหัส", "ชื่อ-นามสกุล", "ห้อง", "คะแนนรวม", "ร้อยละ", "เกรด", "คงเหลือ", "เช็คชื่อ", "ส่งงาน"), rows, 9)}`);
   },
 
-  resets() { // เมนู "คำขอรีเซ็ตรหัส" (อยู่ข้าง ๆ จัดการแอดมิน) แสดงเฉพาะคำขอที่นักเรียนส่งถึงครูคนนี้
+  resets() { // เมนู "คำขอรีเซ็ตรหัสผ่าน" แสดงคำขอของนักเรียนทั้งหมด
     const l = (adminData.resets || []).slice().sort((a, b) => b.time - a.time), now = Date.now();
     const rows = l.map((r) => `<tr>${td(dt(r.time), "whitespace-nowrap text-xs rt-sub")}${td("<b>" + esc(r.sid) + "</b>", "rt-sub")}${td(esc(r.name), "rt-name")}${td(esc(r.email), "text-xs text-slate-500")}${td(badge(r.status, RS_CLS) + (r.status === "ออกโค้ดแล้ว" ? `<div class="text-xs text-slate-400 mt-1">${r.expires > now ? "หมดอายุ " + dt(r.expires) : "โค้ดหมดอายุแล้ว"}</div>` : ""))}
       <td class="px-3 py-2 whitespace-nowrap">${r.status === "รอครู" || r.status === "ออกโค้ดแล้ว" ? `<button type="button" onclick="issueReset('${esc(r.email)}')" class="${btnP}">${r.status === "รอครู" ? "ออกโค้ด" : "ออกโค้ดใหม่"}</button> <button type="button" onclick="rejectReset('${esc(r.email)}')" class="text-red-600 text-sm ml-2">ปฏิเสธ</button>` : ""}</td></tr>`).join("");
-    return `<div class="max-w-5xl">${sBox("คำขอรีเซ็ตรหัสผ่านของนักเรียน", "fa-key", `<p class="text-xs text-slate-500 mb-3">นักเรียนที่เลือกคุณตอนขอรีเซ็ตรหัสจะแสดงที่นี่ → กด "ออกโค้ด" ได้โค้ด 6 หลัก → แจ้งโค้ดให้นักเรียน (ใช้ได้ 60 นาที) → นักเรียนกรอกโค้ดและตั้งรหัสผ่านใหม่เอง · ตรวจให้แน่ใจว่าเป็นตัวนักเรียนจริงก่อนแจ้งโค้ด</p>
+    return `<div class="max-w-5xl">${sBox("คำขอรีเซ็ตรหัสผ่านของนักเรียน", "fa-key", `<p class="text-xs text-slate-500 mb-3">คำขอรีเซ็ตรหัสของนักเรียนจะแสดงที่นี่ → กด "ออกโค้ด" ได้โค้ด 6 หลัก → แจ้งโค้ดให้นักเรียน (ใช้ได้ 60 นาที) → นักเรียนกรอกโค้ดและตั้งรหัสผ่านใหม่เอง · ตรวจให้แน่ใจว่าเป็นตัวนักเรียนจริงก่อนแจ้งโค้ด</p>
       ${l.length ? table(th("เวลาขอ", "รหัส", "ชื่อ", "อีเมล", "สถานะ", "จัดการ"), rows, 6) : '<p class="text-center text-sm text-slate-500 py-6">ยังไม่มีคำขอรีเซ็ตรหัสผ่าน</p>'}`)}</div>`;
   },
 
@@ -2045,7 +1993,7 @@ async function issueReset(email) {
   try {
     const r = await adminCall({ action: "adminIssueResetCode", email });
     await loadAdminData();
-    const q = allResets().find((x) => x.email === email);
+    const q = (adminData.resets || []).find((x) => x.email === email);
     alert(`โค้ดรีเซ็ตรหัสผ่านของ ${q ? q.name + " (" + q.sid + ")" : email}\n\n${r.code}\n\nแจ้งนักเรียนคนนี้เท่านั้น (ใช้ได้ ${r.minutes} นาที) แล้วให้นักเรียนกดลืมรหัสผ่าน > ขั้นตอนที่ 2`);
   } catch (e) { toast(e.message); } finally { adminBusy = false; }
 }
@@ -2124,7 +2072,7 @@ function handleAdminLogin() {
   run(document.querySelector("#adminLoginForm button"), "กำลังตรวจสอบ...", async () => {
     const r = await postData({ action: "adminLogin", username, password });
     if (r.status !== "success") { toast(r.message); return false; }
-    adminToken = r.adminToken; adminRole = r.role; adminUser = r.user; curRoom = "";
+    adminToken = r.adminToken; curRoom = "";
     $("adminPasswordInput").value = "";
     await loadAdminData();
     adminTab = "rooms";
@@ -2135,7 +2083,7 @@ function handleAdminLogin() {
 
 function adminLogout() {
   if (adminToken) postData({ action: "adminLogout", adminToken }, 5000).catch(() => {});
-  clearSess(); adminOnline = null; adminToken = null; adminData = null; curRoom = ""; adminRole = ""; adminUser = "";
+  clearSess(); adminOnline = null; adminToken = null; adminData = null; curRoom = "";
   navStack = [{ v: "roleSelect" }, { v: "adminLoginForm" }];
   render("adminLoginForm");
 }
@@ -2161,7 +2109,7 @@ function saveSess() {
   try {
     let str = "";
     if (currentUser) { const u = Object.assign({}, currentUser); if (String(u.avatar || "").indexOf("data:image/") === 0) u.avatar = ""; str = JSON.stringify({ r: "s", last: lastActive, u, room: stRoom, tab: stTab }); }
-    else if (adminToken) str = JSON.stringify({ r: "a", last: lastActive, t: adminToken, role: adminRole, user: adminUser, room: curRoom, tab: adminTab });
+    else if (adminToken) str = JSON.stringify({ r: "a", last: lastActive, t: adminToken, room: curRoom, tab: adminTab });
     if (!str) { lastSessStr = ""; sessionStorage.removeItem(SESS_KEY); }
     else if (str !== lastSessStr) { lastSessStr = str; sessionStorage.setItem(SESS_KEY, str); } // ไม่เขียนซ้ำถ้าไม่มีอะไรเปลี่ยน (รูปโปรไฟล์ใหญ่)
   } catch (_) {}
@@ -2218,7 +2166,7 @@ function startStudentTimer() {
     startStudentTimer();
     fetchStudent().catch((e) => toast(e.message)).finally(() => { stLoading = stFetching > 0; if (currentUser) renderStudent(); });
   } else if (sv.r === "a" && sv.t) {
-    adminToken = sv.t; adminRole = sv.role || ""; adminUser = sv.user || ""; curRoom = sv.room || ""; adminTab = sv.tab || (curRoom ? "home" : "rooms");
+    adminToken = sv.t; curRoom = sv.room || ""; adminTab = sv.tab || (curRoom ? "home" : "rooms");
     loadAdminData().then(() => { if (!curRoom && !GLOBAL_TABS.includes(adminTab)) adminTab = "rooms"; resetNav("adminDashboard", adminTab); }).catch(() => {});
   }
 })();
