@@ -1205,6 +1205,7 @@ const VALID_CLASS = /^((ปวช|ปวส)\/[A-D]\/L[1-8]|[A-E]\/L[1-4])$/; //
 const ATT = ["มา", "สาย", "ลา", "ขาด"];
 const STATUSES = ["ยังไม่ส่ง", "ส่งแล้ว", "ส่งช้า", "ตรวจแล้ว", "ต้องแก้ไข"];
 const CATS = ["ใบงาน", "ใบสั่งงาน", "ใบประลอง", "แบบทดสอบ", "แบบฝึกหัด", "ปฏิบัติ/ชิ้นงาน", "สอบกลางภาค", "สอบปลายภาค", "จิตพิสัย"]; // ใช้อ่านข้อมูลเก่า
+const EXAM_PRESETS = ["สอบกลางภาค", "สอบปลายภาค", "สอบย่อย"]; // ชื่อสอบเลือกจากรายการ ไม่ต้องพิมพ์ (ตรงกับ Code.gs และ Google Sheet)
 const ASSIGN_CATS = ["ใบงาน", "ใบสั่งงาน", "ใบประลอง", "แบบทดสอบ", "แบบฝึกหัด"]; // หมวดงานที่ครูเลือกใช้ได้ (ติ๊กใช้/ไม่ใช้ที่เมนูเกณฑ์คะแนน) · การสอบตั้งที่เมนูเกณฑ์คะแนนเช่นกัน
 const STU_STATUS = ["ปกติ", "พักการเรียน", "ย้ายออก"];
 const PERIODS = ["ทั้งวัน"].concat([1, 2, 3, 4, 5, 6, 7, 8].map((n) => "คาบ " + n));
@@ -1693,14 +1694,14 @@ const AVIEWS = {
     const lab = "text-xs font-semibold text-slate-600", hint = "text-xs text-slate-500 mb-3";
     const catRows = cats.map((c, i) => { const on = catOn(k, c);
       return `<div class="border border-slate-200 rounded-lg p-3 grid grid-cols-5 gap-2 items-center"><label class="col-span-3 flex items-start gap-2 cursor-pointer text-sm"><input id="cu${i}" type="checkbox" onchange="critToggle(${i})" ${on ? "checked" : ""} class="mt-1 w-4 h-4 accent-indigo-700"><span class="min-w-0"><b>${esc(c)}</b>${ASSIGN_CATS.includes(c) ? "" : ' <span class="text-[11px] text-amber-700">(หมวดเดิม)</span>'}<span class="block text-xs text-slate-500">${cnt[c] ? cnt[c] + " งาน · คะแนนที่ให้จริงรวม " + fmt(raw[c]) : "ยังไม่มีงานในหมวดนี้"}</span></span></label><div class="col-span-2"><input id="cw${i}" oninput="critOverview()" type="number" min="0" max="100" step="0.5" value="${on && k.w[c] !== undefined ? k.w[c] : ""}" placeholder="${on ? "นับตามจริง" : "ไม่ใช้"}" ${on ? "" : "disabled"} class="${inC} disabled:bg-slate-100"></div></div>`; }).join("");
-    const exRows = ex.map((e) => `<tr data-eid="${esc(e.id)}"><td class="px-2 py-1"><input class="ex-name ${inC}" maxlength="60" value="${esc(e.name)}"></td><td class="px-2 py-1 w-32"><input type="number" class="ex-max ${inC}" min="1" max="100" step="0.5" value="${e.max}"></td><td class="px-3 py-2 whitespace-nowrap"><button type="button" onclick="saveExamRow(this)" class="${btnP} !px-3 !py-1.5"><span>บันทึก</span></button><button type="button" onclick="deleteExam('${esc(e.id)}')" class="text-red-600 ml-3"><i class="fa-solid fa-trash"></i></button></td></tr>`).join("");
+    const exRows = ex.map((e) => `<tr data-eid="${esc(e.id)}" data-ename="${esc(e.name)}"><td class="px-3 py-2 font-semibold text-slate-800 rt-name">${esc(e.name)}</td><td class="px-2 py-1 w-32"><input type="number" class="ex-max ${inC}" min="1" max="100" step="0.5" value="${e.max}"></td><td class="px-3 py-2 whitespace-nowrap"><button type="button" onclick="saveExamRow(this)" class="${btnP} !px-3 !py-1.5"><span>บันทึก</span></button><button type="button" onclick="deleteExam('${esc(e.id)}')" class="text-red-600 ml-3"><i class="fa-solid fa-trash"></i></button></td></tr>`).join("");
     return `<div class="max-w-3xl space-y-4">
       <div class="text-xs text-slate-600 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2"><i class="fa-solid fa-circle-info text-indigo-700 mr-1"></i>ตั้งเกณฑ์ของวิชานี้ทั้งหมดที่หน้านี้ · ปุ่ม "บันทึกเกณฑ์" ด้านล่างบันทึกข้อ 1, 3, 4 · รายการสอบ (ข้อ 2) มีปุ่มบันทึกของตัวเอง และหน้าจะโหลดใหม่ จึงควรกด "บันทึกเกณฑ์" ที่แก้ค้างไว้ก่อนเพิ่ม/แก้รายการสอบ · ข้อมูลรายวิชาอยู่ที่เมนู <button type="button" onclick="setAdminTab('course')" class="text-indigo-700 underline">ข้อมูลวิชา</button></div>
       ${sBox("1) เลือกหมวดงานที่ใช้ และสัดส่วนคะแนน", "fa-list-check", `<p class="${hint}">ติ๊กเฉพาะหมวดที่วิชานี้ใช้ · <b>หมวดที่ไม่ติ๊ก = ไม่นับคะแนน</b> (และไม่มีให้เลือกตอนเพิ่มงาน) · ช่องคะแนนคือทั้งหมวดรวมกันกี่คะแนน ระบบจะย่อ/ขยายคะแนนของงานในหมวดให้เอง เช่น ใบงาน 15 ใบ ใบละ 100 คะแนน ใส่ 10 = ทั้งหมวดรวมเป็น 10 คะแนน · เว้นว่าง = นับตามคะแนนที่ให้จริง</p>
        <div class="space-y-2">${catRows}</div>`)}
-      ${sBox("2) การสอบ", "fa-file-signature", `<p class="${hint}">ตั้งชื่อและคะแนนเต็มของการสอบเอง (เช่น สอบกลางภาค 20 คะแนน สอบปลายภาค 20 คะแนน) · คะแนนเต็มของการสอบนับเข้าคะแนนรวมของวิชาโดยตรง · กรอกคะแนนสอบได้ที่เมนู คะแนนรายบุคคล</p>
+      ${sBox("2) การสอบ", "fa-file-signature", `<p class="${hint}">เลือกการสอบ (สอบกลางภาค / สอบปลายภาค / สอบย่อย) แล้วใส่คะแนนเต็ม (เช่น สอบกลางภาค 20 คะแนน) · สอบย่อยเพิ่มได้หลายครั้ง ระบบรันเลข "ครั้งที่ 2, 3..." ให้เอง · คะแนนเต็มของการสอบนับเข้าคะแนนรวมของวิชาโดยตรง · กรอกคะแนนสอบได้ที่เมนู คะแนนรายบุคคล</p>
         ${table(th("ชื่อรายการสอบ", "คะแนนเต็ม", "จัดการ"), exRows, 3)}
-        <div class="mt-3 grid md:grid-cols-6 gap-2 items-end"><div class="md:col-span-3"><label class="${lab}">เพิ่มรายการสอบ (ชื่อ)</label><input id="exNewName" list="exNames" maxlength="60" class="${inC}" placeholder="เช่น สอบกลางภาค"><datalist id="exNames"><option value="สอบกลางภาค"><option value="สอบปลายภาค"><option value="สอบย่อย"></datalist></div>
+        <div class="mt-3 grid md:grid-cols-6 gap-2 items-end"><div class="md:col-span-3"><label class="${lab}">เพิ่มรายการสอบ (เลือกจากรายการ)</label><select id="exNewName" class="${inC} bg-white"><option value="">- เลือกการสอบ -</option>${EXAM_PRESETS.map((n) => `<option value="${esc(n)}">${esc(n)}${n === "สอบย่อย" ? " (เพิ่มได้หลายครั้ง)" : ex.some((e) => e.name === n) ? " (มีแล้ว)" : ""}</option>`).join("")}</select></div>
           <div class="md:col-span-1"><label class="${lab}">คะแนนเต็ม</label><input id="exNewMax" type="number" min="1" max="100" step="0.5" class="${inC}" placeholder="20"></div>
           <div class="md:col-span-2"><button type="button" onclick="addExam(this)" class="${btnP} w-full"><span><i class="fa-solid fa-plus mr-1"></i> เพิ่มรายการสอบ</span></button></div></div>
         <p class="text-xs text-slate-500 mt-2">${ex.length ? "รวมคะแนนสอบที่ตั้งไว้ " + fmt(exTot) + " คะแนน" : "ยังไม่มีรายการสอบ (ไม่ตั้ง = ไม่คิดคะแนนสอบ)"} · เพิ่มได้ไม่เกิน 10 รายการ · ลดคะแนนเต็มต่ำกว่าคะแนนที่ให้ไปแล้วไม่ได้</p>`)}
@@ -1852,7 +1853,7 @@ function saveAssign(btn) {
 function addExam(btn) {
   run(btn, "กำลังบันทึก...", async () => {
     const name = $("exNewName").value.trim(), max = Number($("exNewMax").value);
-    if (!name) throw new Error("กรุณากรอกชื่อรายการสอบ (เช่น สอบกลางภาค)");
+    if (!name) throw new Error("กรุณาเลือกรายการสอบ (สอบกลางภาค / สอบปลายภาค / สอบย่อย)");
     if (!(max > 0) || max > 100) throw new Error("คะแนนเต็มต้องมากกว่า 0 และไม่เกิน 100");
     await adminCall({ action: "adminSaveExam", exam: { name, max } });
     await loadAdminData();
@@ -1862,8 +1863,8 @@ function addExam(btn) {
 }
 function saveExamRow(btn) {
   run(btn, "กำลังบันทึก...", async () => {
-    const tr = btn.closest("tr"), name = tr.querySelector(".ex-name").value.trim(), max = Number(tr.querySelector(".ex-max").value);
-    if (!name) throw new Error("กรุณากรอกชื่อรายการสอบ");
+    const tr = btn.closest("tr"), name = tr.dataset.ename, max = Number(tr.querySelector(".ex-max").value);
+    if (!name) throw new Error("ไม่พบชื่อรายการสอบ");
     if (!(max > 0) || max > 100) throw new Error("คะแนนเต็มต้องมากกว่า 0 และไม่เกิน 100");
     await adminCall({ action: "adminSaveExam", exam: { id: tr.dataset.eid, name, max } });
     await loadAdminData();
